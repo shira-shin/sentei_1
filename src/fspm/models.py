@@ -33,6 +33,13 @@ class Metamer:
     leaf_area: float = 0.0
     incident_light: float = 0.0
     children: list["Metamer"] = field(default_factory=list)
+    auxin_level: float = 0.0
+    cytokinin_level: float = 0.0
+    activation_potential: float = 0.0
+    fruit_weight: float = 0.0
+    leaf_weight: float = 0.0
+    sag_angle: float = 0.0
+    biomass_dry_weight: float = 0.0
 
     def add_child(self, child: "Metamer") -> None:
         self.children.append(child)
@@ -47,6 +54,10 @@ class Metamer:
 
     @property
     def distance_from_apex(self) -> float:
+        return self.order * self.length
+
+    @property
+    def distance_from_root(self) -> float:
         return self.order * self.length
 
 
