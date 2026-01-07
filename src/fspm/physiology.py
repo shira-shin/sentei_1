@@ -3,80 +3,35 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import exp
 
 
 @dataclass(frozen=True)
 class PhotosynthesisInputs:
-    incident_light_umol: float
-    nitrogen_g_m2: float
-    temperature_c: float
-    dark_respiration: float = 1.0
+    incident_light: float
+    p_max: float
+    k: float
+    r_day: float
 
 
 @dataclass(frozen=True)
-class SourceSinkStrengths:
-    fruit: float
-    shoot: float
-    root: float
-    storage: float
-
-
-@dataclass(frozen=True)
-class AllocationResult:
-    fruit: float
-    shoot: float
-    root: float
-    storage: float
-
-
-@dataclass(frozen=True)
-class HormoneLevels:
+class HormoneInputs:
     auxin_apex: float
-    cytokinin_root: float
+    cytokinin: float
+    distance: float
+    lambda_factor: float
 
 
 def compute_photosynthesis(inputs: PhotosynthesisInputs) -> float:
-    """Compute net CO2 assimilation using a simplified FvCB-style minimum."""
+    """Compute net carbon fixation using simplified light response."""
 
-    a_c = 0.08 * inputs.incident_light_umol * inputs.nitrogen_g_m2
-    a_j = 0.06 * inputs.incident_light_umol * (1.0 + inputs.temperature_c / 25.0)
-    assimilation = min(a_c, a_j) - inputs.dark_respiration
-    return max(0.0, assimilation)
+    return inputs.p_max * (1.0 - exp(-inputs.k * inputs.incident_light)) - inputs.r_day
 
 
-def allocate_resources(total_carbon: float, strengths: SourceSinkStrengths) -> AllocationResult:
-    """Allocate carbon based on sink strength competition."""
-
-    total_strength = strengths.fruit + strengths.shoot + strengths.root + strengths.storage
-    if total_strength <= 0:
-        return AllocationResult(0.0, 0.0, 0.0, 0.0)
-
-    def portion(strength: float) -> float:
-        return (strength / total_strength) * total_carbon
-
-    return AllocationResult(
-        fruit=portion(strengths.fruit),
-        shoot=portion(strengths.shoot),
-        root=portion(strengths.root),
-        storage=portion(strengths.storage),
-    )
-
-
-def compute_flowering_probability(carbon_reserve: float, gibberellin_level: float) -> float:
-    """Estimate flower induction probability under biennial bearing pressure."""
-
-    if gibberellin_level <= 0:
-        return 1.0
-    probability = carbon_reserve / (carbon_reserve + gibberellin_level)
-    return max(0.0, min(1.0, probability))
-
-
-def compute_activation_potential(
-    hormones: HormoneLevels, distance_cm: float, lambda_factor: float = 0.5
-) -> float:
+def compute_activation_potential(inputs: HormoneInputs) -> float:
     """Compute bud activation potential from cytokinin/auxin ratio."""
 
-    denominator = hormones.auxin_apex * distance_cm + lambda_factor
+    denominator = (inputs.auxin_apex * inputs.distance) + inputs.lambda_factor
     if denominator <= 0:
         return 0.0
-    return hormones.cytokinin_root / denominator
+    return inputs.cytokinin / denominator
