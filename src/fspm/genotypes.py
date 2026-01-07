@@ -6,34 +6,24 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class GenotypeProfile:
+class GenotypeParams:
     apical_dominance: float
-    branch_angle_deg: float
-    internode_length_cm: float
-    flowering_rate: float
-    biennial_bearing_sensitivity: float
+    internode_length: float
+    branching_angle: float
+    flower_rate: float
 
 
-GENOTYPE_PROFILES = {
-    "fuji": GenotypeProfile(
+GENOTYPE_PARAMS: dict[str, GenotypeParams] = {
+    "fuji": GenotypeParams(
         apical_dominance=0.85,
-        branch_angle_deg=45.0,
-        internode_length_cm=5.0,
-        flowering_rate=0.5,
-        biennial_bearing_sensitivity=0.8,
+        internode_length=0.05,
+        branching_angle=0.78,
+        flower_rate=0.4,
     ),
-    "orin": GenotypeProfile(
+    "orin": GenotypeParams(
         apical_dominance=0.65,
-        branch_angle_deg=70.0,
-        internode_length_cm=4.0,
-        flowering_rate=0.7,
-        biennial_bearing_sensitivity=0.5,
-    ),
-    "m9": GenotypeProfile(
-        apical_dominance=0.4,
-        branch_angle_deg=50.0,
-        internode_length_cm=2.5,
-        flowering_rate=0.9,
-        biennial_bearing_sensitivity=0.3,
+        internode_length=0.04,
+        branching_angle=1.22,
+        flower_rate=0.7,
     ),
 }

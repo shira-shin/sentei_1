@@ -3,70 +3,99 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+from itertools import count
+from math import pi
 
-from .models import Metamer
-from .physiology import (
-    AllocationResult,
-    HormoneLevels,
-    PhotosynthesisInputs,
-    SourceSinkStrengths,
-    allocate_resources,
-    compute_activation_potential,
-    compute_flowering_probability,
-    compute_photosynthesis,
-)
+from .models import AppleTree, BudStatus, Metamer
+from .physiology import HormoneInputs, PhotosynthesisInputs, compute_activation_potential, compute_photosynthesis
 
 
 @dataclass(frozen=True)
 class Environment:
     temperature_c: float
-    auxin_apex: float
-    cytokinin_root: float
+    p_max: float = 12.0
+    light_extinction_k: float = 0.003
+    r_day: float = 1.2
+    activation_threshold: float = 1.0
+    lambda_factor: float = 0.5
+    kappa: float = 0.02
 
 
 @dataclass(frozen=True)
 class SimulationStepResult:
     total_assimilation: float
-    allocation: AllocationResult
     activation_potentials: list[float]
-    flowering_probabilities: list[float]
+    new_metamers: list[Metamer]
 
 
-def simulate_step(metamers: Iterable[Metamer], env: Environment) -> SimulationStepResult:
-    """Run a single time-step of photosynthesis and allocation."""
+def _update_thickness_from_leaf_area(metamer: Metamer, kappa: float) -> None:
+    total_leaf_area = metamer.descendant_leaf_area()
+    area_node = kappa * total_leaf_area
+    if area_node > 0:
+        metamer.thickness = (4.0 * area_node / pi) ** 0.5
+
+
+def _spawn_metamer(parent: Metamer, new_id: int) -> Metamer:
+    return Metamer(
+        id=new_id,
+        parent_id=parent.id,
+        order=parent.order + 1,
+        length=parent.length,
+        thickness=parent.thickness,
+        angle_world=parent.angle_world,
+        biomass_carbon=0.0,
+        nsc_store=0.0,
+        bud_status=BudStatus.DORMANT,
+    )
+
+
+def prune_metamer(target: Metamer) -> None:
+    target.is_pruned = True
+    for descendant in target.iter_descendants():
+        descendant.is_pruned = True
+
+
+def simulate_step(tree: AppleTree, env: Environment) -> SimulationStepResult:
+    """Run a single time-step of photosynthesis, hormone activation, and pipe update."""
 
     assimilation = 0.0
     activation_potentials: list[float] = []
-    flowering_probabilities: list[float] = []
-    hormones = HormoneLevels(auxin_apex=env.auxin_apex, cytokinin_root=env.cytokinin_root)
+    new_metamers: list[Metamer] = []
+    next_id = count(start=max((metamer.id for metamer in tree.metamers), default=0) + 1)
 
-    for metamer in metamers:
+    for metamer in tree.iter_active_metamers():
+        if metamer.is_pruned:
+            continue
         inputs = PhotosynthesisInputs(
-            incident_light_umol=metamer.leaf.incident_light_umol,
-            nitrogen_g_m2=metamer.leaf.nitrogen_g_m2,
-            temperature_c=env.temperature_c,
+            incident_light=metamer.incident_light,
+            p_max=env.p_max,
+            k=env.light_extinction_k,
+            r_day=env.r_day,
         )
         assimilation += compute_photosynthesis(inputs)
-        activation_potentials.append(
-            compute_activation_potential(hormones, metamer.bud.distance_from_apex_cm)
-        )
-        gibberellin = metamer.fruit.gibberellin_level if metamer.fruit else 0.0
-        flowering_probabilities.append(
-            compute_flowering_probability(assimilation, gibberellin)
-        )
 
-    strengths = SourceSinkStrengths(
-        fruit=2.0,
-        shoot=1.5,
-        root=1.0,
-        storage=0.5,
-    )
-    allocation = allocate_resources(assimilation, strengths)
+        hormone_inputs = HormoneInputs(
+            auxin_apex=tree.genotype_params["apical_dominance"],
+            cytokinin=tree.root_system.cytokinin_level,
+            distance=metamer.distance_from_apex,
+            lambda_factor=env.lambda_factor,
+        )
+        potential = compute_activation_potential(hormone_inputs)
+        activation_potentials.append(potential)
+
+        if potential >= env.activation_threshold and metamer.bud_status == BudStatus.DORMANT:
+            metamer.bud_status = BudStatus.ACTIVE
+            child = _spawn_metamer(metamer, next(next_id))
+            metamer.add_child(child)
+            new_metamers.append(child)
+
+        _update_thickness_from_leaf_area(metamer, env.kappa)
+
+    for metamer in new_metamers:
+        tree.add_metamer(metamer)
 
     return SimulationStepResult(
         total_assimilation=assimilation,
-        allocation=allocation,
         activation_potentials=activation_potentials,
-        flowering_probabilities=flowering_probabilities,
+        new_metamers=new_metamers,
     )
