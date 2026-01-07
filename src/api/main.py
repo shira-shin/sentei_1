@@ -45,7 +45,7 @@ class MetamerPayload(BaseModel):
     thickness: float = 0.4
     angle_world: tuple[float, float, float] = (0.0, 1.0, 0.0)
     biomass_carbon: float = 1.2
-    nsc_store: float = 0.8
+    nsc_store: float = 4.0
     bud_status: BudStatus = BudStatus.DORMANT
     leaf_area: float = 30.0
     incident_light: float = 1200.0
@@ -66,7 +66,7 @@ class StepRequest(BaseModel):
     vcmax25: float = 80.0
     jmax25: float = 150.0
     rd25: float = 1.2
-    activation_threshold: float = 1.0
+    activation_threshold: float = 0.6
     lambda_factor: float = 0.5
     kappa: float = 0.02
 
@@ -79,7 +79,7 @@ class YearSimulationRequest(BaseModel):
     vcmax25: float = 80.0
     jmax25: float = 150.0
     rd25: float = 1.2
-    activation_threshold: float = 1.0
+    activation_threshold: float = 0.6
     lambda_factor: float = 0.5
     kappa: float = 0.02
 
@@ -94,6 +94,8 @@ DEFAULT_GENOTYPE_PARAMS = {
     "branching_angle": 0.78,
     "flower_rate": 0.4,
     "kappa": 0.02,
+    "maintenance_cost": 0.0015,
+    "energy_threshold": 0.2,
 }
 
 
@@ -127,7 +129,7 @@ def _build_tree(request: TreeResetRequest | None) -> AppleTree:
         leaf_area=metamer_payload.leaf_area,
         incident_light=metamer_payload.incident_light,
     )
-    tree.add_metamer(metamer)
+    tree.add_root(metamer)
     return tree
 
 
@@ -145,15 +147,13 @@ def _activate_buds_after_prune(tree: AppleTree, target: Metamer) -> None:
 
 
 def _apply_winter_dormancy(tree: AppleTree) -> None:
-    for metamer in tree.metamers:
+    for metamer in tree.iter_metamers():
         if metamer.bud_status != BudStatus.DEAD:
             metamer.bud_status = BudStatus.DORMANT
 
 
 def _apply_pruning_apical_release(tree: AppleTree) -> bool:
-    apical_pruned = any(
-        metamer.is_pruned and metamer.parent_id is None for metamer in tree.metamers
-    )
+    apical_pruned = any(metamer.is_pruned for metamer in tree.roots)
     if not apical_pruned:
         return False
     current = tree.genotype_params.get("apical_dominance", 0.85)
