@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from math import pi, sin
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -61,6 +62,19 @@ class TreeResetRequest(BaseModel):
 
 class StepRequest(BaseModel):
     temperature_c: float = 25.0
+    co2_ppm: float = 410.0
+    vcmax25: float = 80.0
+    jmax25: float = 150.0
+    rd25: float = 1.2
+    activation_threshold: float = 1.0
+    lambda_factor: float = 0.5
+    kappa: float = 0.02
+
+
+class YearSimulationRequest(BaseModel):
+    days: int = Field(default=365, ge=1, le=3650)
+    base_temperature_c: float = 15.0
+    seasonal_amplitude_c: float = 10.0
     co2_ppm: float = 410.0
     vcmax25: float = 80.0
     jmax25: float = 150.0
@@ -130,6 +144,23 @@ def _activate_buds_after_prune(tree: AppleTree, target: Metamer) -> None:
             child.bud_status = BudStatus.ACTIVE
 
 
+def _apply_winter_dormancy(tree: AppleTree) -> None:
+    for metamer in tree.metamers:
+        if metamer.bud_status != BudStatus.DEAD:
+            metamer.bud_status = BudStatus.DORMANT
+
+
+def _apply_pruning_apical_release(tree: AppleTree) -> bool:
+    apical_pruned = any(
+        metamer.is_pruned and metamer.parent_id is None for metamer in tree.metamers
+    )
+    if not apical_pruned:
+        return False
+    current = tree.genotype_params.get("apical_dominance", 0.85)
+    tree.genotype_params["apical_dominance"] = max(0.0, current * 0.6)
+    return True
+
+
 CURRENT_TREE = _build_tree(None)
 CURRENT_ENV = Environment(temperature_c=25.0)
 
@@ -178,3 +209,37 @@ def prune(request: PruneRequest) -> dict[str, object]:
     prune_metamer(target)
     _activate_buds_after_prune(CURRENT_TREE, target)
     return {"tree": tree_to_dict(CURRENT_TREE)}
+
+
+@app.post("/simulate_year")
+def simulate_year(request: YearSimulationRequest) -> dict[str, object]:
+    global CURRENT_ENV
+    total_assimilation = 0.0
+    total_new_metamers: list[dict[str, object]] = []
+    for day in range(request.days):
+        seasonal_phase = (2.0 * pi * day) / request.days
+        temperature = request.base_temperature_c + request.seasonal_amplitude_c * sin(seasonal_phase)
+        CURRENT_ENV = Environment(
+            temperature_c=temperature,
+            co2_ppm=request.co2_ppm,
+            vcmax25=request.vcmax25,
+            jmax25=request.jmax25,
+            rd25=request.rd25,
+            activation_threshold=request.activation_threshold,
+            lambda_factor=request.lambda_factor,
+            kappa=request.kappa,
+        )
+        result = simulate_step(CURRENT_TREE, CURRENT_ENV)
+        total_assimilation += result.total_assimilation
+        total_new_metamers.extend(metamer_to_dict(metamer) for metamer in result.new_metamers)
+
+    _apply_winter_dormancy(CURRENT_TREE)
+    apical_released = _apply_pruning_apical_release(CURRENT_TREE)
+    return {
+        "result": {
+            "total_assimilation": total_assimilation,
+            "new_metamers": total_new_metamers,
+            "apical_dominance_released": apical_released,
+        },
+        "tree": tree_to_dict(CURRENT_TREE),
+    }
