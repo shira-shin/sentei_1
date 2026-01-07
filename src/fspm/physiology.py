@@ -142,13 +142,14 @@ class ApplePhysiology:
         return angle_deg
 
     def transport_hormones(self, tree: AppleTree) -> None:
-        parent_map = {metamer.id: metamer.parent_id for metamer in tree.metamers}
-        for metamer in tree.metamers:
+        all_metamers = list(tree.iter_metamers())
+        parent_map = {metamer.id: metamer.parent_id for metamer in all_metamers}
+        for metamer in all_metamers:
             self.calculate_mechanical_stress(metamer)
             metamer.auxin_level = 0.0
             metamer.cytokinin_level = 0.0
 
-        for metamer in sorted(tree.metamers, key=lambda item: item.order, reverse=True):
+        for metamer in sorted(all_metamers, key=lambda item: item.order, reverse=True):
             if metamer.is_pruned:
                 metamer.auxin_level = 0.0
                 continue
@@ -160,7 +161,7 @@ class ApplePhysiology:
                 if parent and not parent.is_pruned:
                     parent.auxin_level += metamer.auxin_level * self.auxin_transport_efficiency * flow_factor
 
-        for metamer in tree.metamers:
+        for metamer in all_metamers:
             distance = metamer.distance_from_root
             metamer.cytokinin_level = tree.root_system.cytokinin_level * exp(-self.cytokinin_decay * distance)
             denominator = (metamer.auxin_level * metamer.distance_from_apex) + self.lambda_factor

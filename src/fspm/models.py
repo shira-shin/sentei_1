@@ -75,13 +75,34 @@ class AppleTree:
 
     genotype_params: dict[str, float]
     root_system: RootSystem
-    metamers: list[Metamer] = field(default_factory=list)
+    roots: list[Metamer] = field(default_factory=list)
+    _metamer_index: dict[int, Metamer] = field(default_factory=dict, init=False, repr=False)
 
-    def add_metamer(self, metamer: Metamer) -> None:
-        self.metamers.append(metamer)
+    def __post_init__(self) -> None:
+        self._metamer_index = {}
+        for root in self.roots:
+            self._register_metamer(root)
+
+    def _register_metamer(self, metamer: Metamer) -> None:
+        self._metamer_index[metamer.id] = metamer
+        for child in metamer.children:
+            self._register_metamer(child)
+
+    def add_root(self, metamer: Metamer) -> None:
+        self.roots.append(metamer)
+        self._register_metamer(metamer)
+
+    def register_child(self, parent: Metamer, child: Metamer) -> None:
+        parent.add_child(child)
+        self._register_metamer(child)
 
     def find_metamer(self, metamer_id: int) -> Optional[Metamer]:
-        return next((metamer for metamer in self.metamers if metamer.id == metamer_id), None)
+        return self._metamer_index.get(metamer_id)
+
+    def iter_metamers(self) -> Iterable[Metamer]:
+        for root in self.roots:
+            yield root
+            yield from root.iter_descendants()
 
     def iter_active_metamers(self) -> Iterable[Metamer]:
-        return (metamer for metamer in self.metamers if not metamer.is_pruned)
+        return (metamer for metamer in self.iter_metamers() if not metamer.is_pruned)

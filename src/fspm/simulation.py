@@ -43,7 +43,7 @@ def _spawn_metamer(parent: Metamer, new_id: int) -> Metamer:
         thickness=parent.thickness,
         angle_world=parent.angle_world,
         biomass_carbon=0.0,
-        nsc_store=0.0,
+        nsc_store=max(0.1, parent.nsc_store * 0.2),
         bud_status=BudStatus.DORMANT,
     )
 
@@ -58,9 +58,10 @@ def simulate_step(tree: AppleTree, env: Environment) -> SimulationStepResult:
     """Run a single time-step of photosynthesis, hormone activation, and pipe update."""
 
     assimilation = 0.0
+    maintenance_total = 0.0
     activation_potentials: list[float] = []
     new_metamers: list[Metamer] = []
-    next_id = count(start=max((metamer.id for metamer in tree.metamers), default=0) + 1)
+    next_id = count(start=max((metamer.id for metamer in tree.iter_metamers()), default=0) + 1)
     physiology = ApplePhysiology(tree.genotype_params)
 
     physiology.transport_hormones(tree)
@@ -77,6 +78,7 @@ def simulate_step(tree: AppleTree, env: Environment) -> SimulationStepResult:
             rd25=env.rd25,
         )
         assimilation += compute_photosynthesis(inputs)
+        maintenance_total += metamer.biomass_carbon * tree.genotype_params.get("maintenance_cost", 0.002)
 
         hormone_inputs = HormoneInputs(
             auxin_apex=tree.genotype_params["apical_dominance"],
@@ -87,16 +89,29 @@ def simulate_step(tree: AppleTree, env: Environment) -> SimulationStepResult:
         potential = max(metamer.activation_potential, compute_activation_potential(hormone_inputs))
         activation_potentials.append(potential)
 
-        if potential >= env.activation_threshold and metamer.bud_status == BudStatus.DORMANT:
+        energy_threshold = tree.genotype_params.get("energy_threshold", 0.3)
+        branching_penalty = 1.0 + (0.25 * len(metamer.children))
+        can_branch = (
+            potential >= env.activation_threshold * branching_penalty
+            and metamer.nsc_store >= energy_threshold
+            and metamer.bud_status in {BudStatus.DORMANT, BudStatus.ACTIVE}
+        )
+        if can_branch:
             metamer.bud_status = BudStatus.ACTIVE
             child = _spawn_metamer(metamer, next(next_id))
-            metamer.add_child(child)
+            tree.register_child(metamer, child)
             new_metamers.append(child)
 
         physiology.update_pipe_model(metamer, metamer.descendant_leaf_area())
 
-    for metamer in new_metamers:
-        tree.add_metamer(metamer)
+    if maintenance_total > 0 and assimilation < maintenance_total:
+        maintenance_total = assimilation * 0.85
+    net_assimilation = assimilation - maintenance_total
+    if net_assimilation > 0:
+        active_metamers = list(tree.iter_active_metamers())
+        per_metamer_gain = net_assimilation / max(len(active_metamers), 1)
+        for metamer in active_metamers:
+            metamer.nsc_store += per_metamer_gain
 
     return SimulationStepResult(
         total_assimilation=assimilation,
