@@ -10,6 +10,7 @@ from .physiology import (
     compute_activation_potential,
     compute_photosynthesis,
 )
+from .serialization import metamer_to_dict, tree_to_dict
 from .simulation import Environment, SimulationStepResult, prune_metamer, simulate_step
 
 __all__ = [
@@ -29,6 +30,8 @@ __all__ = [
     "compute_activation_potential",
     "compute_growth_direction",
     "compute_photosynthesis",
+    "metamer_to_dict",
     "prune_metamer",
     "simulate_step",
+    "tree_to_dict",
 ]

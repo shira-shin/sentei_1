@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>剪定ゲームプロトタイプ</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        background: #0f172a;
+        color: #f8fafc;
+      }
+      header {
+        padding: 16px 24px;
+        background: #1e293b;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+      #controls {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      button {
+        background: #38bdf8;
+        color: #0f172a;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 14px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button.secondary {
+        background: #f97316;
+      }
+      button.ghost {
+        background: #334155;
+        color: #e2e8f0;
+      }
+      main {
+        display: grid;
+        grid-template-columns: 1fr 260px;
+        height: calc(100vh - 72px);
+      }
+      #canvas-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #status {
+        background: #111827;
+        padding: 16px;
+        border-left: 1px solid #1f2937;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .status-label {
+        color: #94a3b8;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+    <script src="sketch.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <h1>剪定センス育成ゲーム</h1>
+      <div id="controls">
+        <button id="step">1日進める</button>
+        <button id="run" class="secondary">長押し成長</button>
+        <button id="reset" class="ghost">リセット</button>
+      </div>
+    </header>
+    <main>
+      <div id="canvas-container"></div>
+      <aside id="status">
+        <div class="status-label">状態</div>
+        <div id="status-text">Loading...</div>
+        <div class="status-label" style="margin-top: 16px;">操作</div>
+        <ul>
+          <li>枝をクリックすると剪定</li>
+          <li>長押し成長で時間を早送り</li>
+        </ul>
+      </aside>
+    </main>
+  </body>
+</html>
