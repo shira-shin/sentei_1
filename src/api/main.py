@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -20,6 +21,13 @@ from fspm import (
 from fspm.serialization import metamer_to_dict, tree_to_dict
 
 app = FastAPI(title="FSPM Pruning Game API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.mount("/web", StaticFiles(directory="web", html=True), name="web")
 
 
