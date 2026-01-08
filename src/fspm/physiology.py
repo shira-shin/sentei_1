@@ -75,6 +75,7 @@ class ApplePhysiology:
     def __init__(self, genotype_params: dict[str, float]):
         self.genotype_params = genotype_params
         self.kappa = genotype_params.get("kappa", 0.02)
+        self.canopy_extinction = genotype_params.get("canopy_extinction", 1.2)
         self.auxin_transport_efficiency = genotype_params.get("auxin_transport_efficiency", 0.8)
         self.auxin_production = genotype_params.get("auxin_production", 1.0)
         self.cytokinin_decay = genotype_params.get("cytokinin_decay", 0.2)
@@ -91,6 +92,7 @@ class ApplePhysiology:
     def calculate_photosynthesis(
         self,
         incident_light: float,
+        canopy_overlap: float,
         t_leaf: float,
         c_a: float,
         vcmax25: float,
@@ -102,8 +104,9 @@ class ApplePhysiology:
         ci_ratio: float = 0.7,
         o2: float = 210000.0,
     ) -> float:
+        shaded_light = incident_light * exp(-self.canopy_extinction * max(0.0, canopy_overlap))
         inputs = PhotosynthesisInputs(
-            incident_light=incident_light,
+            incident_light=shaded_light,
             t_leaf=t_leaf,
             c_a=c_a,
             vcmax25=vcmax25,

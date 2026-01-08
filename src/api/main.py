@@ -90,11 +90,14 @@ class PruneRequest(BaseModel):
 
 DEFAULT_GENOTYPE_PARAMS = {
     "apical_dominance": 0.85,
+    "apical_decay": 2.5,
     "internode_length": 0.05,
     "branching_angle": 0.78,
     "flower_rate": 0.4,
+    "canopy_extinction": 1.2,
     "kappa": 0.02,
-    "maintenance_cost": 0.0015,
+    "maintenance_cost": 0.001,
+    "construction_cost": 0.5,
     "energy_threshold": 0.2,
 }
 
@@ -206,7 +209,7 @@ def prune(request: PruneRequest) -> dict[str, object]:
     target = CURRENT_TREE.find_metamer(request.metamer_id)
     if not target:
         raise HTTPException(status_code=404, detail="Metamer not found")
-    prune_metamer(target)
+    prune_metamer(CURRENT_TREE, target)
     _activate_buds_after_prune(CURRENT_TREE, target)
     return {"tree": tree_to_dict(CURRENT_TREE)}
 
