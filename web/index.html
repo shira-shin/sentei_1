@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Apple FSPM Lab - Professional Edition</title>
+    <title>Apple FSPM - Seasonal Pruning Lab</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       body {
@@ -11,38 +11,114 @@
         background-color: #0d1117;
         color: #e6edf3;
         overflow: hidden;
-        font-family: sans-serif;
+        font-family: "Segoe UI", sans-serif;
       }
       canvas {
         display: block;
       }
-      .glass-panel {
-        background: rgba(22, 27, 34, 0.8);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(48, 54, 61, 0.8);
-        border-radius: 12px;
+      .glass {
+        background: rgba(22, 27, 34, 0.85);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(48, 54, 61, 0.5);
       }
-      .gauge-container {
-        position: relative;
-        width: 100px;
-        height: 100px;
+      .seasonal-badge {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        text-transform: uppercase;
       }
-      .gauge-svg {
-        transform: rotate(-90deg);
+      .season-winter {
+        background: #1e3a8a;
+        color: #bfdbfe;
       }
-      .gauge-bg {
-        fill: none;
-        stroke: #30363d;
-        stroke-width: 8;
+      .season-spring {
+        background: #064e3b;
+        color: #a7f3d0;
       }
-      .gauge-val {
-        fill: none;
-        stroke: #238636;
-        stroke-width: 8;
-        stroke-linecap: round;
-        transition: stroke-dashoffset 0.5s ease;
+      .season-summer {
+        background: #78350f;
+        color: #fde68a;
+      }
+      .season-autumn {
+        background: #7c2d12;
+        color: #ffedd5;
       }
     </style>
+  </head>
+  <body>
+    <div id="ui" class="fixed inset-0 pointer-events-none z-10 flex flex-col justify-between p-6">
+      <div class="flex justify-between items-start pointer-events-auto">
+        <div class="glass rounded-xl p-4">
+          <div class="mb-1 flex items-center gap-3">
+            <h1 class="text-xl font-bold text-white">Apple FSPM Lab</h1>
+            <span id="season-badge" class="seasonal-badge season-winter">冬季 (剪定期)</span>
+          </div>
+          <div class="text-sm text-gray-400">
+            Day <span id="day-val" class="font-mono text-white">0</span> / 360 -
+            <span id="date-msg">休眠期です。剪定を行ってください。</span>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button
+            id="btn-next"
+            class="glass px-6 py-3 rounded-lg transition hover:bg-white/10 active:scale-95"
+          >
+            1日進める
+          </button>
+          <button
+            id="btn-auto"
+            class="glass px-6 py-3 rounded-lg border-lime-500/30 text-lime-400 transition hover:bg-lime-500/20"
+          >
+            自動成長
+          </button>
+          <button
+            id="btn-reset"
+            class="glass px-4 py-3 rounded-lg border-red-500/30 text-sm text-red-400 transition hover:bg-red-500/20"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-end">
+        <div class="glass w-72 rounded-xl p-4 pointer-events-auto">
+          <h3 class="mb-3 text-xs font-bold uppercase tracking-tighter text-gray-500">生理状態スコア</h3>
+          <div class="space-y-4">
+            <div>
+              <div class="mb-1 flex justify-between text-[10px]">
+                <span>T/Rバランス (Shoot:Root)</span><span id="tr-val">1.0</span>
+              </div>
+              <div class="flex h-1 overflow-hidden rounded-full bg-gray-800">
+                <div id="tr-bar-s" class="h-full bg-emerald-400" style="width: 50%"></div>
+                <div id="tr-bar-r" class="h-full bg-orange-500" style="width: 50%"></div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-[10px] text-gray-500">推定果実重量</div>
+                <div id="fruit-weight" class="text-lg font-mono text-orange-400">0.0 kg</div>
+              </div>
+              <div>
+                <div class="text-right text-[10px] text-gray-500">エネルギー(NSC)</div>
+                <div id="nsc-val" class="text-right text-lg font-mono text-lime-400">0.0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass max-w-xs rounded-xl p-4 text-[10px] text-gray-400 pointer-events-auto">
+          <p>
+            <span class="text-white">【操作】</span><br />
+            ・枝を<span class="text-red-400">クリック</span>：剪定（冬季のみ推奨）<br />
+            ・冬の剪定が来年の枝振りと実りに直結します。<br />
+            ・ドラッグ：視点回転、スクロール：ズーム
+          </p>
+        </div>
+      </div>
+    </div>
+
     <script type="importmap">
       {
         "imports": {
@@ -51,143 +127,80 @@
         }
       }
     </script>
-  </head>
-  <body>
-    <div id="ui-layer" class="fixed inset-0 pointer-events-none z-10 flex flex-col justify-between p-6">
-      <div class="flex justify-between items-start pointer-events-auto">
-        <div class="glass-panel p-4">
-          <h1 class="text-xl font-bold text-lime-400">Apple FSPM Lab v2.5</h1>
-          <p class="text-xs text-gray-400">機能構造植物モデル - 品種: ふじ (Fuji)</p>
-        </div>
-        <div class="flex gap-2">
-          <button
-            id="btn-step"
-            class="glass-panel px-4 py-2 hover:bg-gray-800 transition pointer-events-auto text-sm font-medium"
-          >
-            1日進める
-          </button>
-          <button
-            id="btn-auto"
-            class="glass-panel px-4 py-2 hover:bg-gray-800 transition pointer-events-auto text-sm font-medium bg-lime-900/20 text-lime-400 border-lime-500/50"
-          >
-            長押し成長中
-          </button>
-          <button
-            id="btn-reset"
-            class="glass-panel px-4 py-2 hover:bg-red-900/20 text-red-400 border-red-500/50 transition pointer-events-auto text-sm"
-          >
-            リセット
-          </button>
-        </div>
-      </div>
-
-      <div class="flex flex-col items-end gap-4">
-        <div class="glass-panel p-5 w-64 pointer-events-auto">
-          <h2 class="text-sm font-bold mb-4 border-b border-gray-700 pb-2 uppercase tracking-widest text-gray-400">
-            樹体診断パネル
-          </h2>
-
-          <div class="mb-6">
-            <div class="flex justify-between text-xs mb-1">
-              <span>T/Rバランス (Shoot/Root)</span>
-              <span id="tr-val">1.0</span>
-            </div>
-            <div class="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden flex">
-              <div id="tr-bar-shoot" class="h-full bg-blue-500" style="width: 50%"></div>
-              <div id="tr-bar-root" class="h-full bg-orange-500" style="width: 50%"></div>
-            </div>
-            <div class="flex justify-between text-[10px] mt-1 text-gray-500 italic">
-              <span>地上部</span>
-              <span>地下部</span>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-4 mb-4">
-            <div class="gauge-container">
-              <svg class="gauge-svg w-full h-full" viewBox="0 0 100 100">
-                <circle class="gauge-bg" cx="50" cy="50" r="40"></circle>
-                <circle
-                  id="cn-gauge"
-                  class="gauge-val"
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  stroke-dasharray="251.2"
-                  stroke-dashoffset="125.6"
-                ></circle>
-              </svg>
-              <div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">C/N比</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-gray-400">同化産物蓄積</div>
-              <div id="nsc-val" class="text-lg font-mono text-lime-400">0.00</div>
-              <div class="text-[10px] text-gray-500">units/metamer</div>
-            </div>
-          </div>
-
-          <div class="text-[11px] bg-black/40 p-2 rounded border border-gray-800">
-            <span class="text-blue-400 font-bold">STATUS:</span>
-            <span id="status-msg">シミュレーション準備完了</span>
-          </div>
-        </div>
-
-        <div class="glass-panel p-4 w-64 pointer-events-auto">
-          <p class="text-[10px] text-gray-400 mb-2 leading-relaxed">
-            枝をクリックして<span class="text-red-400">剪定</span>します。頂芽優勢が解除され、休眠芽が動き出す様子を観察してください。
-          </p>
-        </div>
-      </div>
-    </div>
 
     <script type="module">
       import * as THREE from "three";
       import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
+      const SEASONS = {
+        WINTER: {
+          name: "冬季 (剪定期)",
+          start: 0,
+          end: 90,
+          class: "season-winter",
+          msg: "剪定の季節です。来年の樹形を整えましょう。",
+        },
+        SPRING: {
+          name: "春季 (芽吹き)",
+          start: 91,
+          end: 150,
+          class: "season-spring",
+          msg: "芽が動き出しました。エネルギーを消費します。",
+        },
+        SUMMER: {
+          name: "夏季 (伸長期)",
+          start: 151,
+          end: 270,
+          class: "season-summer",
+          msg: "光合成が活発です。果実が肥大します。",
+        },
+        AUTUMN: {
+          name: "秋季 (収穫期)",
+          start: 271,
+          end: 360,
+          class: "season-autumn",
+          msg: "収穫の秋です。貯蔵養分を蓄えます。",
+        },
+      };
+
       const GENOTYPE = {
         FUJI: {
-          name: "ふじ",
+          internode: 4.0,
+          angle: 0.6,
           apical_dominance: 0.85,
-          internode_length: 5.0,
-          branching_angle: Math.PI / 4,
-          dwarfing: 0.8,
-          light_efficiency: 0.9,
+          growth_cost: 5.0,
         },
       };
 
       class Metamer {
-        constructor(parent = null, order = 0) {
+        constructor(parent = null) {
           this.id = Math.random().toString(36).substr(2, 9);
           this.parent = parent;
           this.children = [];
-          this.order = order;
 
-          this.length = GENOTYPE.FUJI.internode_length;
-          this.diameter = 0.2;
-          this.angleX = (Math.random() - 0.5) * 0.1;
+          this.length = GENOTYPE.FUJI.internode;
+          this.thickness = 0.2;
+          this.angleX = parent ? Math.random() * 0.4 + 0.3 : 0;
           this.rotationY = parent ? parent.rotationY + 2.399 : 0;
 
           this.nsc = 5.0;
-          this.auxin = 1.0;
-          this.leafArea = 30.0;
-          this.isPruned = false;
-          this.age = 0;
+          this.hasLeaf = false;
+          this.hasFruit = false;
+          this.fruitWeight = 0;
 
           this.mesh = null;
-          this.budMesh = null;
+          this.leafMesh = null;
+          this.fruitMesh = null;
         }
 
-        getTotalLeafArea() {
-          let area = this.leafArea;
-          for (const child of this.children) {
-            area += child.getTotalLeafArea();
-          }
-          return area;
-        }
-
-        updateThickness() {
-          const totalArea = this.getTotalLeafArea();
-          this.diameter = 0.15 * Math.sqrt(totalArea);
-          if (this.diameter < 0.1) this.diameter = 0.1;
+        updateStructure() {
+          let descendantLeaves = this.hasLeaf ? 1 : 0;
+          this.children.forEach((child) => {
+            child.updateStructure();
+            descendantLeaves += child.leafCount;
+          });
+          this.leafCount = descendantLeaves;
+          this.thickness = 0.12 * Math.sqrt(descendantLeaves + 1);
         }
       }
 
@@ -195,19 +208,19 @@
       let camera;
       let renderer;
       let controls;
-      let rootMetamer = null;
-      let allMetamers = [];
-      let isAutoGrowing = false;
+      let raycaster;
+      let root = null;
+      let allNodes = [];
+      let currentDay = 0;
+      let isAuto = false;
+      const mouse = new THREE.Vector2();
 
-      function initThree() {
+      function init() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0d1117);
 
-        const grid = new THREE.GridHelper(100, 20, 0x30363d, 0x161b22);
-        scene.add(grid);
-
         camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(20, 30, 50);
+        camera.position.set(20, 30, 60);
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -217,142 +230,212 @@
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        const ambientLight = new THREE.AmbientLight(0x404040, 2);
-        scene.add(ambientLight);
+        raycaster = new THREE.Raycaster();
 
-        const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        sunLight.position.set(10, 50, 10);
-        scene.add(sunLight);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambient);
+        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        sun.position.set(50, 100, 50);
+        scene.add(sun);
 
-        window.addEventListener("resize", () => {
-          camera.aspect = window.innerWidth / window.innerHeight;
-          camera.updateProjectionMatrix();
-          renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        scene.add(new THREE.GridHelper(100, 20, 0x222222, 0x111111));
 
-        resetSimulation();
+        window.addEventListener("resize", onResize);
+        window.addEventListener("mousedown", onPrune);
+
+        reset();
         animate();
       }
 
-      function resetSimulation() {
-        allMetamers.forEach((metamer) => {
-          if (metamer.mesh) scene.remove(metamer.mesh);
-          if (metamer.budMesh) scene.remove(metamer.budMesh);
-        });
-
-        rootMetamer = new Metamer(null, 0);
-        allMetamers = [rootMetamer];
-        updateTreeVisualization();
+      function reset() {
+        allNodes.forEach((node) => cleanupNode(node));
+        root = new Metamer();
+        allNodes = [root];
+        currentDay = 0;
+        updateVisuals();
         updateUI();
       }
 
-      function simulateDay() {
-        const sunIntensity = 1200;
-        let totalPS = 0;
-
-        allMetamers.forEach((metamer) => {
-          const ps = (sunIntensity * 0.05 * metamer.leafArea) / (sunIntensity + 100) - 0.5;
-          metamer.nsc += ps;
-          totalPS += ps;
-          metamer.age++;
-        });
-
-        const newNodes = [];
-        allMetamers.forEach((metamer) => {
-          metamer.auxin = Math.max(0.1, 1.0 - metamer.age * 0.05);
-
-          if (metamer.children.length < 2 && metamer.nsc > 10.0) {
-            const isMain = metamer.children.length === 0;
-            const branchAngle = isMain ? 0.1 : GENOTYPE.FUJI.branching_angle;
-
-            const child = new Metamer(metamer, isMain ? metamer.order : metamer.order + 1);
-            child.angleX = branchAngle;
-
-            metamer.nsc -= 8.0;
-            metamer.children.push(child);
-            newNodes.push(child);
-          }
-        });
-
-        allMetamers.push(...newNodes);
-
-        allMetamers.forEach((metamer) => metamer.updateThickness());
-
-        updateTreeVisualization();
-        updateUI(totalPS);
+      function cleanupNode(node) {
+        if (node.mesh) scene.remove(node.mesh);
+        if (node.leafMesh) scene.remove(node.leafMesh);
+        if (node.fruitMesh) scene.remove(node.fruitMesh);
       }
 
-      function updateTreeVisualization() {
-        allMetamers.forEach((metamer) => {
-          if (metamer.mesh) scene.remove(metamer.mesh);
-          if (metamer.budMesh) scene.remove(metamer.budMesh);
+      function getCurrentSeason() {
+        for (const key in SEASONS) {
+          if (currentDay >= SEASONS[key].start && currentDay <= SEASONS[key].end) {
+            return SEASONS[key];
+          }
+        }
+        return SEASONS.WINTER;
+      }
 
-          const geo = new THREE.CylinderGeometry(
-            metamer.diameter * 0.8,
-            metamer.parent ? metamer.parent.diameter : metamer.diameter,
-            metamer.length,
-            8,
-          );
-          geo.translate(0, metamer.length / 2, 0);
+      function step() {
+        currentDay = (currentDay + 1) % 361;
+        const season = getCurrentSeason();
 
-          const mat = new THREE.MeshStandardMaterial({
-            color: 0x4a3728,
-            roughness: 0.9,
-            metalness: 0.1,
+        allNodes.forEach((node) => {
+          if (node.hasLeaf && season !== SEASONS.WINTER) {
+            node.nsc += 0.8;
+          }
+          node.nsc -= 0.1;
+
+          if (currentDay === 91) node.hasLeaf = true;
+          if (currentDay === 151 && Math.random() < 0.2) node.hasFruit = true;
+          if (currentDay === 271) {
+            node.hasFruit = false;
+          }
+          if (currentDay === 330) node.hasLeaf = false;
+        });
+
+        if (currentDay > 90 && currentDay < 250) {
+          const newNodes = [];
+          allNodes.forEach((node) => {
+            if (node.children.length < 2 && node.nsc > GENOTYPE.FUJI.growth_cost) {
+              const isApex = node.children.length === 0;
+              if (isApex || Math.random() < 0.05) {
+                const child = new Metamer(node);
+                child.angleX = isApex ? 0.1 : GENOTYPE.FUJI.angle;
+                node.nsc -= GENOTYPE.FUJI.growth_cost;
+                node.children.push(child);
+                newNodes.push(child);
+              }
+            }
           });
+          allNodes.push(...newNodes);
+        }
 
-          const mesh = new THREE.Mesh(geo, mat);
-          metamer.mesh = mesh;
+        if (currentDay % 5 === 0) {
+          root.updateStructure();
+          updateVisuals();
+        }
+        updateUI();
+      }
 
-          if (metamer.parent) {
-            mesh.position.set(0, metamer.parent.length, 0);
-            metamer.parent.mesh.add(mesh);
-            mesh.rotation.x = metamer.angleX;
-            mesh.rotation.y = metamer.rotationY;
-          } else {
-            scene.add(mesh);
-            mesh.position.set(0, 0, 0);
+      function updateVisuals() {
+        allNodes.forEach((node) => {
+          if (!node.mesh) {
+            const geo = new THREE.CylinderGeometry(0.1, 0.1, node.length, 6);
+            geo.translate(0, node.length / 2, 0);
+            node.mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
+            node.mesh.userData = { nodeId: node.id };
+            if (node.parent) {
+              node.parent.mesh.add(node.mesh);
+              node.mesh.position.set(0, node.parent.length, 0);
+              node.mesh.rotation.x = node.angleX;
+              node.mesh.rotation.y = node.rotationY;
+            } else {
+              scene.add(node.mesh);
+            }
+          }
+          node.mesh.scale.set(node.thickness * 5, 1, node.thickness * 5);
+
+          if (node.hasLeaf && !node.leafMesh) {
+            const leafGeo = new THREE.SphereGeometry(0.5, 4, 4);
+            leafGeo.scale(1, 0.2, 1.5);
+            node.leafMesh = new THREE.Mesh(leafGeo, new THREE.MeshStandardMaterial({ color: 0x2d5a27 }));
+            node.leafMesh.position.set(0, node.length, 0.5);
+            node.mesh.add(node.leafMesh);
+          } else if (!node.hasLeaf && node.leafMesh) {
+            node.mesh.remove(node.leafMesh);
+            node.leafMesh = null;
           }
 
-          if (metamer.children.length === 0) {
-            const budGeo = new THREE.SphereGeometry(metamer.diameter * 1.5);
-            const budMat = new THREE.MeshStandardMaterial({
-              color: 0xafff00,
-              emissive: 0xafff00,
-              emissiveIntensity: 2,
-            });
-            const bud = new THREE.Mesh(budGeo, budMat);
-            bud.position.set(0, metamer.length, 0);
-            mesh.add(bud);
-            metamer.budMesh = bud;
+          if (node.hasFruit && !node.fruitMesh) {
+            const fruitGeo = new THREE.SphereGeometry(0.4, 8, 8);
+            node.fruitMesh = new THREE.Mesh(fruitGeo, new THREE.MeshStandardMaterial({ color: 0xcc2222 }));
+            node.fruitMesh.position.set(0, 0.2, 0.5);
+            node.mesh.add(node.fruitMesh);
+          } else if (!node.hasFruit && node.fruitMesh) {
+            node.mesh.remove(node.fruitMesh);
+            node.fruitMesh = null;
           }
         });
       }
 
-      function updateUI(dailyPS = 0) {
-        document.getElementById("tr-val").innerText = (allMetamers.length * 0.2).toFixed(2);
-        document.getElementById("nsc-val").innerText = rootMetamer.nsc.toFixed(2);
+      function onPrune(event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
 
-        const offset = 251.2 - (Math.min(rootMetamer.nsc, 20) / 20) * 251.2;
-        document.getElementById("cn-gauge").style.strokeDashoffset = offset;
+        const intersects = raycaster.intersectObjects(
+          allNodes.map((node) => node.mesh).filter((mesh) => mesh),
+        );
+        if (intersects.length > 0) {
+          const id = intersects[0].object.userData.nodeId;
+          const target = allNodes.find((node) => node.id === id);
+          if (target && target.parent) {
+            pruneSubtree(target);
+            updateUI();
+          }
+        }
+      }
 
-        const msg = dailyPS > 0 ? "光合成によりエネルギー蓄積中..." : "休眠中";
-        document.getElementById("status-msg").innerText = msg;
+      function pruneSubtree(node) {
+        if (node.parent) {
+          node.parent.children = node.parent.children.filter((child) => child.id !== node.id);
+        }
+
+        const toRemove = [];
+        const collect = (current) => {
+          toRemove.push(current);
+          current.children.forEach(collect);
+        };
+        collect(node);
+
+        toRemove.forEach((current) => {
+          cleanupNode(current);
+          allNodes = allNodes.filter((item) => item.id !== current.id);
+        });
+
+        root.updateStructure();
+        updateVisuals();
+      }
+
+      function updateUI() {
+        const season = getCurrentSeason();
+        const badge = document.getElementById("season-badge");
+        badge.innerText = season.name;
+        badge.className = `seasonal-badge ${season.class}`;
+
+        document.getElementById("day-val").innerText = currentDay;
+        document.getElementById("date-msg").innerText = season.msg;
+
+        const shootWeight = allNodes.length;
+        const rootWeight = 50;
+        const tr = (shootWeight / rootWeight).toFixed(2);
+        document.getElementById("tr-val").innerText = tr;
+
+        const shootWidth = Math.min(100, (shootWeight / (shootWeight + rootWeight)) * 100);
+        document.getElementById("tr-bar-s").style.width = `${shootWidth}%`;
+        document.getElementById("tr-bar-r").style.width = `${100 - shootWidth}%`;
+
+        const fruits = allNodes.filter((node) => node.hasFruit).length;
+        document.getElementById("fruit-weight").innerText = `${(fruits * 0.3).toFixed(1)} kg`;
+        document.getElementById("nsc-val").innerText = root.nsc.toFixed(1);
+      }
+
+      function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
       }
 
       function animate() {
         requestAnimationFrame(animate);
         controls.update();
-        if (isAutoGrowing) simulateDay();
+        if (isAuto) step();
         renderer.render(scene, camera);
       }
 
-      document.getElementById("btn-step").addEventListener("click", simulateDay);
-      document.getElementById("btn-auto").addEventListener("mousedown", () => (isAutoGrowing = true));
-      document.getElementById("btn-auto").addEventListener("mouseup", () => (isAutoGrowing = false));
-      document.getElementById("btn-reset").addEventListener("click", resetSimulation);
+      document.getElementById("btn-next").onclick = step;
+      document.getElementById("btn-auto").onclick = () => {
+        isAuto = !isAuto;
+      };
+      document.getElementById("btn-reset").onclick = reset;
 
-      window.onload = initThree;
+      window.onload = init;
     </script>
   </body>
 </html>
