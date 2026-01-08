@@ -165,13 +165,25 @@ function buildHierarchy() {
 }
 
 function computePipeRadii(node) {
-  const childRadii = node.children.map((child) => computePipeRadii(child));
-  const childSum = childRadii.reduce((sum, radius) => sum + radius ** 2, 0);
-  const baseRadius = Math.max(node.thickness * 0.5 * scaleConfig.thickness, 0.02);
-  const radiusBottom = childSum > 0 ? Math.max(baseRadius, Math.sqrt(childSum)) : baseRadius;
+  const radiusScale = scaleConfig.thickness * 0.015;
+  const minRadius = 0.015;
+  if (node.is_pruned) {
+    node.radiusBottom = minRadius;
+    node.radiusTop = minRadius;
+    node.descendantLeafArea = 0;
+    return 0;
+  }
+  const childAreas = node.children.map((child) => computePipeRadii(child));
+  const childSum = childAreas.reduce((sum, area) => sum + area, 0);
+  const descendantLeafArea = (node.leaf_area || 0) + childSum;
+  const radiusBottom = Math.max(minRadius, Math.sqrt(descendantLeafArea) * radiusScale);
+  const radiusTop = childSum > 0
+    ? Math.max(minRadius, Math.sqrt(childSum) * radiusScale)
+    : Math.max(minRadius, radiusBottom * 0.45);
   node.radiusBottom = radiusBottom;
-  node.radiusTop = Math.max(radiusBottom * 0.6, 0.01);
-  return radiusBottom;
+  node.radiusTop = radiusTop;
+  node.descendantLeafArea = descendantLeafArea;
+  return descendantLeafArea;
 }
 
 function rebuildTree() {
@@ -189,9 +201,7 @@ function rebuildTree() {
   roots.forEach((root) => computePipeRadii(root));
 
   const goldenAngle = THREE.MathUtils.degToRad(137.5);
-  const branchAngleBase = treeData.genotype_params?.branching_angle ?? 0.78;
-  const branchAngleDeg = Math.min(70, Math.max(45, 45 + branchAngleBase * 30));
-  const branchAngle = THREE.MathUtils.degToRad(branchAngleDeg);
+  const branchAngle = treeData.genotype_params?.branching_angle ?? THREE.MathUtils.degToRad(45);
   const baseDirection = new THREE.Vector3(0, 1, 0);
   const origin = new THREE.Vector3(0, 0, 0);
 
