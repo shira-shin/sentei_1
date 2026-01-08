@@ -75,11 +75,12 @@ function updateStatus() {
     status.textContent = "Loading...";
     return;
   }
-  const activeCount = treeData.metamers.filter((metamer) => !metamer.is_pruned).length;
-  const prunedCount = treeData.metamers.length - activeCount;
+  const allMetamers = collectMetamers(treeData);
+  const activeCount = allMetamers.filter((metamer) => !metamer.is_pruned).length;
+  const prunedCount = allMetamers.length - activeCount;
   const assimilation = lastResult ? lastResult.total_assimilation.toFixed(2) : "-";
   status.innerHTML = `
-    <div>メタマー数: <strong>${treeData.metamers.length}</strong></div>
+    <div>メタマー数: <strong>${allMetamers.length}</strong></div>
     <div>剪定済み: <strong>${prunedCount}</strong></div>
     <div>同化量: <strong>${assimilation}</strong></div>
   `;
@@ -145,26 +146,23 @@ function animate() {
   }
 }
 
-function buildHierarchy() {
-  if (!treeData) {
-    return { roots: [], byId: new Map() };
+function collectMetamers(tree) {
+  if (!tree || !tree.roots) {
+    return [];
   }
-  const byId = new Map();
-  treeData.metamers.forEach((metamer) => {
-    byId.set(metamer.id, { ...metamer, children: [] });
-  });
-  treeData.metamers.forEach((metamer) => {
-    if (metamer.parent_id !== null) {
-      const parent = byId.get(metamer.parent_id);
-      if (parent) {
-        parent.children.push(byId.get(metamer.id));
-      }
+  const result = [];
+  const stack = [...tree.roots];
+  while (stack.length) {
+    const node = stack.pop();
+    if (!node) {
+      continue;
     }
-  });
-  const roots = treeData.roots && treeData.roots.length
-    ? treeData.roots.map((rootId) => byId.get(rootId)).filter(Boolean)
-    : treeData.metamers.filter((metamer) => metamer.parent_id === null).map((metamer) => byId.get(metamer.id));
-  return { roots, byId };
+    result.push(node);
+    if (node.children && node.children.length) {
+      stack.push(...node.children);
+    }
+  }
+  return result;
 }
 
 function computePipeRadii(node) {
@@ -199,8 +197,7 @@ function rebuildTree() {
   if (!treeData) {
     return;
   }
-
-  const { roots } = buildHierarchy();
+  const roots = treeData.roots || [];
   roots.forEach((root) => computePipeRadii(root));
 
   const goldenAngle = THREE.MathUtils.degToRad(137.5);
@@ -237,9 +234,9 @@ function buildSegment(node, start, direction, depth, branchAngle, goldenAngle) {
 
   const endPoint = start.clone().add(direction.clone().normalize().multiplyScalar(length));
   const budMaterial = new THREE.MeshStandardMaterial({
-    color: node.bud_status === "Active" ? 0xa3ff12 : 0x94a3b8,
-    emissive: node.bud_status === "Active" ? 0x7cff2a : 0x000000,
-    emissiveIntensity: node.bud_status === "Active" ? 2.2 : 0.0,
+    color: node.bud_status === "Active" ? 0xcaff33 : 0x94a3b8,
+    emissive: node.bud_status === "Active" ? 0x9aff00 : 0x000000,
+    emissiveIntensity: node.bud_status === "Active" ? 3.5 : 0.0,
   });
   const bud = new THREE.Mesh(new THREE.SphereGeometry(radiusTop * 1.2, 12, 12), budMaterial);
   bud.position.copy(endPoint);
@@ -293,7 +290,8 @@ function renderPanels() {
 }
 
 function PanelDashboard({ tree, result }) {
-  const totalCarbon = tree.metamers.reduce((sum, metamer) => sum + (metamer.biomass_carbon || 0), 0);
+  const allMetamers = collectMetamers(tree);
+  const totalCarbon = allMetamers.reduce((sum, metamer) => sum + (metamer.biomass_carbon || 0), 0);
   const totalNitrogen = (tree.root_system?.nitrogen_uptake || 1) * 4;
   const cnRatio = totalNitrogen > 0 ? totalCarbon / totalNitrogen : 0;
   const cnPercent = Math.min(100, Math.max(0, (cnRatio / 3) * 100));
