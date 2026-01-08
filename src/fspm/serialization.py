@@ -19,7 +19,7 @@ def metamer_to_dict(metamer: Metamer) -> dict[str, object]:
         "is_pruned": metamer.is_pruned,
         "leaf_area": metamer.leaf_area,
         "incident_light": metamer.incident_light,
-        "children": [child.id for child in metamer.children],
+        "children": [metamer_to_dict(child) for child in metamer.children],
         "auxin_level": metamer.auxin_level,
         "cytokinin_level": metamer.cytokinin_level,
         "activation_potential": metamer.activation_potential,
@@ -37,6 +37,5 @@ def tree_to_dict(tree: AppleTree) -> dict[str, object]:
             "nitrogen_uptake": tree.root_system.nitrogen_uptake,
             "cytokinin_level": tree.root_system.cytokinin_level,
         },
-        "roots": [metamer.id for metamer in tree.roots],
-        "metamers": [metamer_to_dict(metamer) for metamer in tree.iter_metamers()],
+        "roots": [metamer_to_dict(metamer) for metamer in tree.roots],
     }
