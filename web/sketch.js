@@ -116,6 +116,9 @@ function initScene() {
   const grid = new THREE.GridHelper(60, 30, 0x1f2937, 0x111827);
   grid.position.y = -0.01;
   scene.add(grid);
+  const axes = new THREE.AxesHelper(6);
+  axes.setColors(0x38bdf8, 0xf97316, 0x22c55e);
+  scene.add(axes);
 
   treeGroup = new THREE.Group();
   scene.add(treeGroup);
@@ -234,9 +237,9 @@ function buildSegment(node, start, direction, depth, branchAngle, goldenAngle) {
 
   const endPoint = start.clone().add(direction.clone().normalize().multiplyScalar(length));
   const budMaterial = new THREE.MeshStandardMaterial({
-    color: node.bud_status === "Active" ? 0x84cc16 : 0x94a3b8,
-    emissive: node.bud_status === "Active" ? 0x7cfc00 : 0x000000,
-    emissiveIntensity: node.bud_status === "Active" ? 1.2 : 0.0,
+    color: node.bud_status === "Active" ? 0xa3ff12 : 0x94a3b8,
+    emissive: node.bud_status === "Active" ? 0x7cff2a : 0x000000,
+    emissiveIntensity: node.bud_status === "Active" ? 2.2 : 0.0,
   });
   const bud = new THREE.Mesh(new THREE.SphereGeometry(radiusTop * 1.2, 12, 12), budMaterial);
   bud.position.copy(endPoint);
@@ -298,11 +301,28 @@ function PanelDashboard({ tree, result }) {
   const rootMass = tree.root_system?.nitrogen_uptake || 1;
   const trBalance = rootMass > 0 ? (shootMass / rootMass) : 0;
   const balanceAngle = Math.max(-30, Math.min(30, (trBalance - 1.0) * 12));
+  const assimilation = result?.total_assimilation ?? 0;
+  const energyPercent = Math.max(0, Math.min(100, ((assimilation + 2) / 6) * 100));
+  let statusMessage = "シミュレーションを実行してください。";
+  if (result) {
+    if (assimilation < 0.4) {
+      statusMessage = "現在は貯蔵養分を消費して新鞘を伸ばしています。";
+    } else if (assimilation < 1.6) {
+      statusMessage = "光合成と呼吸が拮抗し、次の葉の準備を進めています。";
+    } else {
+      statusMessage = "同化が優勢で、新しい葉を展開するフェーズです。";
+    }
+  }
 
   return React.createElement(
     "div",
     { className: "status-grid" },
-    React.createElement("div", { className: "status-label" }, "T/Rバランス"),
+    React.createElement(
+      "div",
+      { className: "status-label" },
+      React.createElement("span", { className: "label-icon" }, "⚖︎"),
+      "T/Rバランス",
+    ),
     React.createElement(
       "div",
       { className: "meter-track" },
@@ -317,7 +337,12 @@ function PanelDashboard({ tree, result }) {
         React.createElement("span", { key: "shoot" }, "Shoot"),
       ]),
     ),
-    React.createElement("div", { className: "status-label" }, "C/N比"),
+    React.createElement(
+      "div",
+      { className: "status-label" },
+      React.createElement("span", { className: "label-icon" }, "◔"),
+      "C/N比",
+    ),
     React.createElement(
       "div",
       { style: { position: "relative" } },
@@ -330,12 +355,32 @@ function PanelDashboard({ tree, result }) {
     React.createElement(
       "div",
       { className: "status-label" },
-      result ? "成長バイタル" : "成長バイタル (未計測)",
+      React.createElement("span", { className: "label-icon" }, "⚡"),
+      "現在のエネルギー状態",
     ),
     React.createElement(
       "div",
-      null,
-      result ? `光合成余剰: ${result.total_assimilation.toFixed(2)}` : "シミュレーションを実行してください。",
+      { className: "energy-track" },
+      React.createElement("div", {
+        className: "energy-fill",
+        style: { width: `${energyPercent}%` },
+      }),
+      React.createElement(
+        "div",
+        { className: "energy-value" },
+        result ? `${assimilation.toFixed(2)} units` : "--",
+      ),
+    ),
+    React.createElement(
+      "div",
+      { className: "status-label" },
+      React.createElement("span", { className: "label-icon" }, "🧪"),
+      "ステータス診断",
+    ),
+    React.createElement(
+      "div",
+      { className: "status-message" },
+      statusMessage,
     ),
   );
 }
