@@ -1,559 +1,443 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apple FSPM - Professional Botanical Twin v7.1</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { margin: 0; background: #fdfdfd; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; }
-        canvas { display: block; touch-action: none; }
-        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
-        input[type="range"] { accent-color: #0f172a; }
-        #ui-layer { pointer-events: none; }
-        #ui-layer > * { pointer-events: auto; }
-        .season-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apple FSPM v17</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: "Inter", system-ui, sans-serif;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      touch-action: none;
+    }
+    #ui-layer {
+      pointer-events: none;
+    }
+    #ui-layer > * {
+      pointer-events: auto;
+    }
+    .glass {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(12px);
+    }
+    input[type="range"] {
+      accent-color: #38bdf8;
+    }
+  </style>
 </head>
 <body>
-
-<div id="ui-layer" class="fixed inset-0 z-10 p-8 flex flex-col justify-between">
-    <!-- Top Row: Control & Stats -->
-    <div class="flex justify-between items-start">
-        <div class="glass p-8 rounded-[2.5rem] w-96 shadow-2xl">
-            <div class="flex items-center justify-between mb-4">
-                <h1 class="text-2xl font-black text-slate-800 tracking-tighter italic">APPLE <span class="text-rose-600">DIGITAL</span></h1>
-                <div id="season-badge" class="px-4 py-1 rounded-full text-[10px] font-black border-2 transition-all duration-1000 uppercase">Winter</div>
-            </div>
-            
-            <div class="flex items-end gap-3 mb-6">
-                <div class="text-6xl font-mono font-black text-slate-700 leading-none" id="day-display">000</div>
-                <div class="text-xs text-slate-400 font-bold uppercase tracking-widest pb-1">Days Passed<br><span id="season-name" class="text-slate-900 font-bold">休眠剪定期</span></div>
-            </div>
-
-            <div class="space-y-4 mb-6">
-                <button id="btn-play" class="w-full py-4 rounded-2xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition transform active:scale-95 shadow-xl flex items-center justify-center gap-3">
-                    <span id="play-icon" class="text-xl">▶</span> <span id="play-text" class="tracking-widest">START SIMULATION</span>
-                </button>
-                
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <div class="flex justify-between text-[10px] font-black text-slate-400 uppercase mb-2">
-                        <span>シミュレーション速度</span>
-                        <span id="speed-label">5x</span>
-                    </div>
-                    <input type="range" id="speed-slider" min="1" max="20" value="5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-                </div>
-                
-                <div class="flex gap-2">
-                    <button id="btn-step" class="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold hover:bg-white transition">1日進む</button>
-                    <button id="btn-reset" class="px-4 py-3 rounded-xl border border-red-50 text-red-500 text-xs font-bold hover:bg-red-50 transition uppercase">Reset</button>
-                </div>
-            </div>
+  <div id="ui-layer" class="fixed inset-0 z-10 p-6 flex flex-col justify-between">
+    <div class="flex justify-between items-start gap-6">
+      <div class="glass rounded-3xl p-6 w-[360px]">
+        <div class="flex items-center justify-between mb-4">
+          <h1 class="text-xl font-black tracking-tight">APPLE FSPM <span class="text-sky-400">v17</span></h1>
+          <span id="season-badge" class="text-[10px] uppercase font-black px-3 py-1 rounded-full border border-slate-500">Dormant</span>
         </div>
-
-        <!-- Dashboard -->
-        <div class="glass p-8 rounded-[2.5rem] w-84 shadow-2xl">
-            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">Physiological Telemetry</h3>
-            <div class="space-y-8">
-                <div>
-                    <div class="flex justify-between text-[11px] mb-3 font-black text-slate-600 uppercase">
-                        <span>T/R Balance</span>
-                        <span id="tr-val">1.00</span>
-                    </div>
-                    <div class="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner border border-slate-200">
-                        <div id="tr-shoot" class="h-full bg-emerald-500 transition-all duration-700" style="width: 50%"></div>
-                        <div id="tr-root" class="h-full bg-amber-500 transition-all duration-700" style="width: 50%"></div>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-1 gap-4">
-                    <div class="bg-rose-50/50 p-4 rounded-3xl border border-rose-100 flex justify-between items-center">
-                        <span class="text-[10px] font-black text-rose-400 uppercase">推定果実重</span>
-                        <span id="weight-val" class="text-3xl font-black text-rose-600">0.0<span class="text-sm ml-1 font-bold">kg</span></span>
-                    </div>
-                    <div class="bg-amber-50/50 p-4 rounded-3xl border border-amber-100 flex justify-between items-center">
-                        <span class="text-[10px] font-black text-amber-500 uppercase">貯蔵養分 (NSC)</span>
-                        <span id="nsc-val" class="text-3xl font-black text-amber-600">0.0</span>
-                    </div>
-                </div>
-
-                <button id="toggle-flow" class="w-full py-4 rounded-2xl border-2 border-slate-200 text-[11px] font-black text-slate-400 hover:border-emerald-400 hover:text-emerald-600 transition uppercase tracking-widest">
-                    生体流動モード (OFF)
-                </button>
-            </div>
+        <div class="flex items-end gap-3 mb-6">
+          <div id="day-display" class="text-5xl font-black font-mono">000</div>
+          <div class="text-xs uppercase text-slate-400 font-semibold">Days</div>
         </div>
+        <div class="space-y-4">
+          <button id="btn-play" class="w-full py-3 rounded-2xl bg-sky-500 text-slate-900 font-bold hover:bg-sky-400 transition">Start</button>
+          <div class="bg-slate-900/60 rounded-2xl p-4">
+            <div class="flex justify-between text-[10px] uppercase font-black text-slate-400 mb-2">
+              <span>Simulation Speed</span>
+              <span id="speed-label">4x</span>
+            </div>
+            <input id="speed-slider" type="range" min="1" max="12" value="4" class="w-full" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btn-step" class="py-2 rounded-xl border border-slate-600 text-xs font-bold uppercase hover:bg-slate-800 transition">Step</button>
+            <button id="btn-reset" class="py-2 rounded-xl border border-rose-500 text-xs font-bold uppercase text-rose-300 hover:bg-rose-900/40 transition">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass rounded-3xl p-6 w-[320px]">
+        <h2 class="text-xs uppercase font-black text-slate-400 mb-4">Physiology Dashboard</h2>
+        <div class="space-y-6">
+          <div>
+            <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
+              <span>樹勢メーター (Vigor)</span>
+              <span id="vigor-val">0.80</span>
+            </div>
+            <div class="h-3 bg-slate-800 rounded-full overflow-hidden">
+              <div id="vigor-bar" class="h-full bg-emerald-400" style="width: 80%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
+              <span>T/R Balance</span>
+              <span id="tr-val">1.00</span>
+            </div>
+            <div class="flex h-3 bg-slate-800 rounded-full overflow-hidden">
+              <div id="tr-shoot" class="h-full bg-indigo-400" style="width: 50%"></div>
+              <div id="tr-root" class="h-full bg-amber-400" style="width: 50%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
+              <span>貯蔵養分タンク (NSC)</span>
+              <span id="nsc-val">120</span>
+            </div>
+            <div class="h-3 bg-slate-800 rounded-full overflow-hidden">
+              <div id="nsc-bar" class="h-full bg-sky-400" style="width: 60%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass rounded-3xl p-6 w-[260px]">
+        <h2 class="text-xs uppercase font-black text-slate-400 mb-4">剪定モード</h2>
+        <button id="btn-prune" class="w-full py-3 rounded-2xl border border-amber-400 text-amber-200 font-bold uppercase hover:bg-amber-500/20 transition">Scissors: OFF</button>
+        <p class="text-xs text-slate-400 mt-4 leading-relaxed">クリックした枝と子孫を削除し、樹勢とNSCを再計算します。</p>
+      </div>
     </div>
 
-    <!-- Status Bar -->
     <div class="flex justify-between items-end">
-        <div class="glass p-6 rounded-[2rem] max-w-lg border-l-8 border-slate-800 shadow-2xl">
-            <div id="status-bar" class="text-sm font-bold text-slate-700 leading-relaxed italic">
-                「冬季：剪定を行ってください。2年枝以上の短果枝（短い枝）は花がつきやすい傾向にあります。」
-            </div>
-        </div>
-        <div class="flex flex-col items-end gap-2">
-             <div class="glass px-6 py-3 rounded-2xl text-[10px] font-black text-slate-400 flex gap-6 uppercase tracking-widest shadow-lg">
-                <div class="flex items-center"><span class="season-dot bg-[#a1887f] mr-2"></span>1年枝</div>
-                <div class="flex items-center"><span class="season-dot bg-[#4e342e] mr-2"></span>2年枝+</div>
-                <div class="flex items-center"><span class="season-dot bg-white border border-slate-200 mr-2"></span>花</div>
-                <div class="flex items-center"><span class="season-dot bg-red-500 mr-2"></span>実</div>
-            </div>
-            <div class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Mouse Wheel: Zoom | Drag: Rotate | Click: Prune</div>
-        </div>
+      <div class="glass rounded-2xl p-4 max-w-lg text-sm text-slate-300" id="status-bar">Dormant phase: prune to unlock lateral buds.</div>
+      <div class="text-xs uppercase text-slate-400 font-bold tracking-widest">Drag: Rotate · Wheel: Zoom · Click: Prune</div>
     </div>
-</div>
+  </div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
 
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+    import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+    import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
-/**
- * 1. 植物学的定数
- */
-const SEASONS = {
-    WINTER: { name: "冬季休眠期", start: 0, end: 90, color: "#64748b", msg: "休眠期です。冬の剪定は春の勢いを決定します。" },
-    SPRING: { name: "春季開花・展葉", start: 91, end: 150, color: "#10b981", msg: "春です。貯蔵養分を消費して開花と展葉が始まります。" },
-    SUMMER: { name: "夏季果実肥大", start: 151, end: 270, color: "#f59e0b", msg: "夏です。光合成産物が果実へと送られています。" },
-    AUTUMN: { name: "秋季成熟・収穫", start: 271, end: 360, color: "#e11d48", msg: "秋です。リンゴが赤く色付き、収穫の時を迎えました。" }
-};
+    const GOLDEN_ANGLE = THREE.MathUtils.degToRad(137.5);
+    const AUXIN_DECAY = 0.72;
+    const AUXIN_THRESHOLD = 0.6;
+    const PIPE_EXPONENT = 2.5;
 
-const VARIETY = {
-    internode_len: 4.8,
-    spur_len: 1.4,
-    leaf_size: 2.8,
-    apical_dominance: 0.85,
-    flower_chance: 0.65,
-    growth_threshold: 4.0
-};
+    const SEASONS = [
+      { name: "Dormant", start: 0, end: 90, color: "#94a3b8", msg: "Dormant phase: prune to unlock lateral buds." },
+      { name: "Spring", start: 91, end: 180, color: "#38bdf8", msg: "Spring: buds activate and leaves emerge." },
+      { name: "Summer", start: 181, end: 300, color: "#f59e0b", msg: "Summer: photosynthesis fuels vigor." },
+      { name: "Autumn", start: 301, end: 360, color: "#f97316", msg: "Autumn: storage compounds accumulate." }
+    ];
 
-/**
- * 2. メタマー（節間）クラス
- */
-class Metamer {
-    constructor(parent = null, type = 'shoot') {
-        this.id = Math.random().toString(36).substr(2, 9);
+    class Metamer {
+      constructor(parent = null, level = 0) {
+        this.id = Math.random().toString(36).slice(2);
         this.parent = parent;
         this.children = [];
-        this.type = type; // 'shoot' (長果枝), 'spur' (短果枝), 'trunk' (主幹)
-        this.age = 0; 
-
-        this.length = (type === 'spur' ? VARIETY.spur_len : VARIETY.internode_len) * (0.8 + Math.random() * 0.4);
-        this.thickness = 0.4;
-        this.angleX = parent ? (type === 'spur' ? 1.4 : 0.4 + Math.random() * 0.1) : 0;
-        this.rotationY = parent ? parent.rotationY + 2.399 : 0; 
-
-        this.nsc = parent ? 0.0 : 180.0; 
-        this.hasLeaf = false;
-        this.isFlowering = false;
-        this.fruitScale = 0; // 実の大きさ (0 to 1)
-        this.leafCount = 0;
-        
+        this.level = level;
+        this.length = 4.5 + Math.random() * 1.5;
+        this.radius = 0.4;
+        this.nsc = parent ? 0 : 120;
+        this.auxin = 0;
+        this.budActive = true;
+        this.localQuat = new THREE.Quaternion();
+        this.position = new THREE.Vector3();
+        this.worldQuat = new THREE.Quaternion();
         this.mesh = null;
-        this.leafMeshes = [];
-        this.flowerMeshes = [];
-        this.fruitMesh = null;
+        this.budMesh = null;
+      }
     }
 
-    updateStructure() {
-        let descendantLeafCount = this.hasLeaf ? (this.type === 'spur' ? 8 : 4) : 0;
-        this.children.forEach(c => {
-            c.updateStructure();
-            descendantLeafCount += c.leafCount;
-        });
-        this.leafCount = descendantLeafCount;
-        // パイプモデル理論：末端の総葉面積に比例して基部が太くなる
-        this.thickness = 0.25 * Math.pow(descendantLeafCount + 1, 0.62);
+    let scene, camera, renderer, composer, controls, raycaster;
+    let root = null;
+    let metamerGroup = new THREE.Group();
+    let day = 0;
+    let isPlaying = false;
+    let speed = 4;
+    let pruneMode = false;
+    let lastFrame = 0;
+
+    const ui = {
+      day: document.getElementById("day-display"),
+      season: document.getElementById("season-badge"),
+      status: document.getElementById("status-bar"),
+      speed: document.getElementById("speed-slider"),
+      speedLabel: document.getElementById("speed-label"),
+      btnPlay: document.getElementById("btn-play"),
+      btnStep: document.getElementById("btn-step"),
+      btnReset: document.getElementById("btn-reset"),
+      btnPrune: document.getElementById("btn-prune"),
+      vigor: document.getElementById("vigor-val"),
+      vigorBar: document.getElementById("vigor-bar"),
+      tr: document.getElementById("tr-val"),
+      trShoot: document.getElementById("tr-shoot"),
+      trRoot: document.getElementById("tr-root"),
+      nsc: document.getElementById("nsc-val"),
+      nscBar: document.getElementById("nsc-bar")
+    };
+
+    function initScene() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color("#0f172a");
+
+      camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 2000);
+      camera.position.set(40, 55, 90);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      document.body.appendChild(renderer.domElement);
+
+      composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.6, 0.1);
+      composer.addPass(bloom);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      const light = new THREE.DirectionalLight("#ffffff", 1.1);
+      light.position.set(50, 120, 60);
+      scene.add(light);
+      scene.add(new THREE.AmbientLight("#94a3b8", 0.6));
+
+      const grid = new THREE.GridHelper(200, 20, "#1e293b", "#1e293b");
+      grid.position.y = 0;
+      scene.add(grid);
+
+      raycaster = new THREE.Raycaster();
+      scene.add(metamerGroup);
+
+      window.addEventListener("resize", onResize);
+      renderer.domElement.addEventListener("pointerdown", onPointerDown);
     }
-}
 
-/**
- * 3. 描画・システム・コア
- */
-let scene, camera, renderer, controls, raycaster;
-let root = null;
-let allNodes = [];
-let day = 0;
-let isPlaying = false;
-let flowMode = false;
-let speed = 5;
-let frameCount = 0;
-const mouse = new THREE.Vector2();
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    }
 
-function init() {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xfcfcfc);
-    
-    camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 2000);
-    camera.position.set(100, 100, 180);
+    function createTree() {
+      root = new Metamer(null, 0);
+      root.length = 8;
+      root.localQuat.setFromAxisAngle(new THREE.Vector3(0, 0, 1), 0);
+      root.worldQuat.copy(root.localQuat);
+      root.position.set(0, 0, 0);
+      growInitial(root, 3);
+      rebuildMeshes();
+    }
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
+    function growInitial(node, depth) {
+      if (depth <= 0) return;
+      const child = new Metamer(node, node.level + 1);
+      child.localQuat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.2);
+      node.children.push(child);
+      growInitial(child, depth - 1);
+      for (let i = 0; i < 2; i++) {
+        const lateral = new Metamer(node, node.level + 1);
+        const spin = GOLDEN_ANGLE * (node.level + i + 1);
+        const tilt = 0.8 + Math.random() * 0.3;
+        const qTilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), tilt);
+        const qSpin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spin);
+        lateral.localQuat.copy(qSpin).multiply(qTilt);
+        node.children.push(lateral);
+        growInitial(lateral, depth - 2);
+      }
+    }
 
-    // OrbitControls: ズーム設定を強化
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.screenSpacePanning = true;
-    controls.minDistance = 20;
-    controls.maxDistance = 1000;
-    controls.target.set(0, 40, 0);
+    function updateWorldTransforms(node) {
+      if (node.parent) {
+        node.worldQuat.copy(node.parent.worldQuat).multiply(node.localQuat);
+        const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(node.parent.worldQuat).normalize();
+        const offset = axis.multiplyScalar(node.parent.length);
+        node.position.copy(node.parent.position).add(offset);
+      }
+      node.children.forEach((child) => updateWorldTransforms(child));
+    }
 
-    raycaster = new THREE.Raycaster();
+    function computeAuxin(node) {
+      let auxin = node.children.length === 0 ? 1 : 0;
+      node.children.forEach((child) => {
+        auxin += computeAuxin(child) * AUXIN_DECAY;
+      });
+      node.auxin = auxin;
+      node.budActive = node.auxin < AUXIN_THRESHOLD || node.children.length === 0;
+      return auxin;
+    }
 
-    // 高級ライティング (三点照明)
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambient);
-    
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    keyLight.position.set(80, 150, 80);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(2048, 2048);
-    scene.add(keyLight);
+    function computePipeModel(node) {
+      if (node.children.length === 0) {
+        node.radius = 0.35;
+        return Math.pow(node.radius, PIPE_EXPONENT);
+      }
+      let sum = 0;
+      node.children.forEach((child) => {
+        sum += computePipeModel(child);
+      });
+      node.radius = Math.pow(sum, 1 / PIPE_EXPONENT);
+      return Math.pow(node.radius, PIPE_EXPONENT);
+    }
 
-    const fillLight = new THREE.PointLight(0xeef2ff, 1.0);
-    fillLight.position.set(-80, 50, -50);
-    scene.add(fillLight);
+    function rebuildMeshes() {
+      metamerGroup.clear();
+      updateWorldTransforms(root);
+      computeAuxin(root);
+      computePipeModel(root);
 
-    const grid = new THREE.GridHelper(400, 40, 0xe2e8f0, 0xf1f5f9);
-    grid.position.y = -0.1;
-    scene.add(grid);
+      const stemMat = new THREE.MeshStandardMaterial({ color: "#8b5e34", roughness: 0.6 });
+      const budActiveMat = new THREE.MeshStandardMaterial({ color: "#7dd3fc", emissive: "#38bdf8", emissiveIntensity: 1.2 });
+      const budDormantMat = new THREE.MeshStandardMaterial({ color: "#475569", emissive: "#0f172a", emissiveIntensity: 0.2 });
 
-    window.addEventListener('resize', onResize);
-    window.addEventListener('mousemove', onHover);
-    window.addEventListener('click', onPrune);
+      const queue = [root];
+      while (queue.length) {
+        const node = queue.shift();
+        const stemGeo = new THREE.CylinderGeometry(node.radius, node.parent ? node.parent.radius : node.radius * 1.2, node.length, 8);
+        const stem = new THREE.Mesh(stemGeo, stemMat);
+        stem.userData.metamer = node;
 
-    reset();
+        const center = node.position.clone();
+        const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(node.worldQuat).normalize();
+        const mid = center.clone().add(axis.clone().multiplyScalar(node.length / 2));
+        stem.position.copy(mid);
+        stem.quaternion.copy(node.worldQuat);
+        metamerGroup.add(stem);
+        node.mesh = stem;
+
+        const budGeo = new THREE.SphereGeometry(0.5, 12, 12);
+        const bud = new THREE.Mesh(budGeo, node.budActive ? budActiveMat : budDormantMat);
+        bud.position.copy(center.clone().add(axis.clone().multiplyScalar(node.length)));
+        bud.userData.metamer = node;
+        metamerGroup.add(bud);
+        node.budMesh = bud;
+
+        node.children.forEach((child) => queue.push(child));
+      }
+    }
+
+    function simulateDay() {
+      day = (day + 1) % 361;
+      const season = SEASONS.find((s) => day >= s.start && day <= s.end) || SEASONS[0];
+      ui.day.textContent = day.toString().padStart(3, "0");
+      ui.season.textContent = season.name;
+      ui.season.style.borderColor = season.color;
+      ui.status.textContent = season.msg;
+
+      growTree(root);
+      updatePhysiology();
+      rebuildMeshes();
+    }
+
+    function growTree(node) {
+      node.children.forEach((child) => growTree(child));
+      if (!node.budActive) return;
+      if (node.children.length > 2 || node.level > 6) return;
+      if (Math.random() > 0.4) return;
+      const lateral = new Metamer(node, node.level + 1);
+      const spin = GOLDEN_ANGLE * (node.level + node.children.length + 1);
+      const tilt = 0.6 + Math.random() * 0.6;
+      const qTilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), tilt);
+      const qSpin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spin);
+      lateral.localQuat.copy(qSpin).multiply(qTilt);
+      node.children.push(lateral);
+    }
+
+    function updatePhysiology() {
+      const metrics = { shootMass: 0, rootMass: 40, totalNsc: 0, budsActive: 0, budsDormant: 0 };
+      traverse(root, (node) => {
+        metrics.shootMass += node.length * node.radius;
+        metrics.totalNsc += node.nsc;
+        if (node.budActive) metrics.budsActive += 1; else metrics.budsDormant += 1;
+      });
+      const vigor = THREE.MathUtils.clamp(0.4 + metrics.budsActive / (metrics.budsDormant + metrics.budsActive + 1), 0.2, 1.0);
+      const trRatio = metrics.shootMass / metrics.rootMass;
+      ui.vigor.textContent = vigor.toFixed(2);
+      ui.vigorBar.style.width = `${vigor * 100}%`;
+      ui.tr.textContent = trRatio.toFixed(2);
+      const shootPct = THREE.MathUtils.clamp(trRatio / (trRatio + 1), 0.2, 0.8) * 100;
+      ui.trShoot.style.width = `${shootPct}%`;
+      ui.trRoot.style.width = `${100 - shootPct}%`;
+      ui.nsc.textContent = metrics.totalNsc.toFixed(0);
+      ui.nscBar.style.width = `${THREE.MathUtils.clamp(metrics.totalNsc / 200, 0, 1) * 100}%`;
+    }
+
+    function traverse(node, fn) {
+      fn(node);
+      node.children.forEach((child) => traverse(child, fn));
+    }
+
+    function pruneNode(target) {
+      if (!target || !target.parent) return;
+      target.parent.children = target.parent.children.filter((child) => child !== target);
+      updatePhysiology();
+      rebuildMeshes();
+    }
+
+    function onPointerDown(event) {
+      if (!pruneMode) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(metamerGroup.children, false);
+      if (hits.length) {
+        const metamer = hits[0].object.userData.metamer;
+        pruneNode(metamer);
+      }
+    }
+
+    function animate(timestamp) {
+      requestAnimationFrame(animate);
+      controls.update();
+      if (isPlaying && timestamp - lastFrame > 600 / speed) {
+        simulateDay();
+        lastFrame = timestamp;
+      }
+      composer.render();
+    }
+
+    ui.speed.addEventListener("input", (event) => {
+      speed = Number(event.target.value);
+      ui.speedLabel.textContent = `${speed}x`;
+    });
+
+    ui.btnPlay.addEventListener("click", () => {
+      isPlaying = !isPlaying;
+      ui.btnPlay.textContent = isPlaying ? "Pause" : "Start";
+    });
+
+    ui.btnStep.addEventListener("click", () => simulateDay());
+
+    ui.btnReset.addEventListener("click", () => {
+      day = 0;
+      root = null;
+      metamerGroup.clear();
+      createTree();
+      updatePhysiology();
+      simulateDay();
+    });
+
+    ui.btnPrune.addEventListener("click", () => {
+      pruneMode = !pruneMode;
+      ui.btnPrune.textContent = `Scissors: ${pruneMode ? "ON" : "OFF"}`;
+      ui.btnPrune.classList.toggle("bg-amber-500/20", pruneMode);
+    });
+
+    initScene();
+    createTree();
+    updatePhysiology();
     animate();
-}
-
-function reset() {
-    allNodes.forEach(n => cleanupNode(n));
-    root = new Metamer(null, 'trunk');
-    allNodes = [root];
-    day = 0;
-    updateTree();
-    updateUI();
-}
-
-function cleanupNode(n) {
-    if (n.mesh) {
-        if (n.parent && n.parent.mesh) n.parent.mesh.remove(n.mesh);
-        else scene.remove(n.mesh);
-    }
-}
-
-function getSeason() {
-    for (let key in SEASONS) {
-        if (day >= SEASONS[key].start && day <= SEASONS[key].end) return SEASONS[key];
-    }
-    return SEASONS.WINTER;
-}
-
-/**
- * 4. 生物学成長ステップ
- */
-function step() {
-    const oldDay = day;
-    day = (day + 1) % 361;
-    const season = getSeason();
-
-    if (oldDay === 360 && day === 0) {
-        allNodes.forEach(n => n.age++);
-    }
-
-    allNodes.forEach(n => {
-        // 光合成産物の計算
-        if (n.hasLeaf && season !== SEASONS.WINTER) {
-            n.nsc += 3.2 * (1.1 - Math.min(0.6, n.thickness * 0.06));
-        }
-        n.nsc -= 0.18; // 代謝
-
-        // 季節イベントのトリガー
-        if (day === 91) n.hasLeaf = true; 
-        
-        // 開花 (春)
-        if (day === 95 && n.type === 'spur' && n.age >= 1) {
-            if (Math.random() < VARIETY.flower_chance) n.isFlowering = true;
-        }
-        // 結実 (初夏)
-        if (day === 140 && n.isFlowering) {
-            n.isFlowering = false;
-            n.fruitScale = 0.1;
-        }
-        // 実の肥大 (夏)
-        if (n.fruitScale > 0 && day > 140 && day < 270) {
-            n.fruitScale += 0.01;
-            if (n.fruitScale > 1.0) n.fruitScale = 1.0;
-        }
-        // 落葉・落果 (冬入り)
-        if (day === 320) { 
-            n.hasLeaf = false; 
-            n.isFlowering = false;
-            n.fruitScale = 0; 
-        }
-    });
-
-    // 成長プロセス (長果枝の伸長)
-    if (day > 100 && day < 240) {
-        const born = [];
-        allNodes.forEach(n => {
-            if (n.children.length < 3 && n.nsc > VARIETY.growth_threshold) {
-                const isApex = n.children.length === 0;
-                const prob = isApex ? 0.35 : 0.02;
-                if (Math.random() < prob) {
-                    const nextType = (isApex || Math.random() > 0.7) ? 'shoot' : 'spur';
-                    const child = new Metamer(n, nextType);
-                    n.nsc -= VARIETY.growth_threshold;
-                    n.children.push(child);
-                    born.push(child);
-                }
-            }
-        });
-        allNodes.push(...born);
-    }
-
-    root.updateStructure();
-    updateTree();
-    updateUI();
-}
-
-/**
- * 5. 3Dビジュアライゼーション
- */
-function updateTree() {
-    allNodes.forEach(n => {
-        // 1. 枝（経年による色変化）
-        if (!n.mesh) {
-            const geo = new THREE.CylinderGeometry(0.1, 0.1, n.length, 16);
-            geo.translate(0, n.length / 2, 0);
-            const mat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
-            n.mesh = new THREE.Mesh(geo, mat);
-            n.mesh.userData = { nodeId: n.id };
-            n.mesh.castShadow = true;
-            n.mesh.receiveShadow = true;
-
-            if (n.parent && n.parent.mesh) {
-                n.parent.mesh.add(n.mesh);
-                n.mesh.position.set(0, n.parent.length, 0);
-                n.mesh.rotation.x = n.angleX;
-                n.mesh.rotation.y = n.rotationY;
-            } else {
-                scene.add(n.mesh);
-            }
-        }
-        
-        n.mesh.material.color.set(n.age === 0 ? 0xa1887f : 0x4e342e);
-        n.mesh.scale.set(n.thickness * 6, 1, n.thickness * 6);
-
-        // 2. 葉（解剖学的配置）
-        if (n.hasLeaf && n.leafMeshes.length === 0) {
-            const count = n.type === 'spur' ? 8 : 4;
-            for (let i = 0; i < count; i++) {
-                const leafShape = new THREE.Shape();
-                leafShape.moveTo(0, 0);
-                leafShape.quadraticCurveTo(1.2, 1.8, 0, 4);
-                leafShape.quadraticCurveTo(-1.2, 1.8, 0, 0);
-                const leafGeo = new THREE.ShapeGeometry(leafShape);
-                leafGeo.scale(0.3 * VARIETY.leaf_size, 0.4 * VARIETY.leaf_size, 1);
-                leafGeo.rotateX(-Math.PI / 2);
-                
-                const leafMat = new THREE.MeshStandardMaterial({ color: 0x388e3c, side: THREE.DoubleSide });
-                const leaf = new THREE.Mesh(leafGeo, leafMat);
-                
-                const yPos = (i / count) * n.length;
-                leaf.position.set(0, yPos, n.thickness * 0.2 + 0.1);
-                leaf.rotation.set(0.5, i * 2.399, 0.1); 
-                n.mesh.add(leaf);
-                n.leafMeshes.push(leaf);
-            }
-        } else if (!n.hasLeaf && n.leafMeshes.length > 0) {
-            n.leafMeshes.forEach(l => n.mesh.remove(l));
-            n.leafMeshes = [];
-        }
-
-        // 3. 花（開花フェーズ）
-        if (n.isFlowering && n.flowerMeshes.length === 0) {
-            for(let j=0; j<5; j++) {
-                const fGroup = new THREE.Group();
-                for(let k=0; k<5; k++) {
-                    const pGeo = new THREE.CircleGeometry(0.35, 8);
-                    const pMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-                    const p = new THREE.Mesh(pGeo, pMat);
-                    p.rotation.x = Math.PI/2;
-                    p.position.set(Math.cos(k)*0.4, 0, Math.sin(k)*0.4);
-                    fGroup.add(p);
-                }
-                fGroup.position.set(0, n.length, 0);
-                fGroup.rotation.y = j;
-                n.mesh.add(fGroup);
-                n.flowerMeshes.push(fGroup);
-            }
-        } else if (!n.isFlowering && n.flowerMeshes.length > 0) {
-            n.flowerMeshes.forEach(f => n.mesh.remove(f));
-            n.flowerMeshes = [];
-        }
-
-        // 4. 実（肥大アニメーション）
-        if (n.fruitScale > 0) {
-            if (!n.fruitMesh) {
-                const aGeo = new THREE.SphereGeometry(1, 24, 24);
-                const aMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f, roughness: 0.3 });
-                n.fruitMesh = new THREE.Mesh(aGeo, aMat);
-                n.mesh.add(n.fruitMesh);
-            }
-            // 実の成長をスケールに反映
-            const s = n.fruitScale * 1.2;
-            n.fruitMesh.scale.set(s, s*0.9, s);
-            n.fruitMesh.position.set(0, n.length * 0.8, n.thickness * 0.3 + s * 0.8);
-            // 色の変化 (夏は緑っぽく、秋は赤く)
-            const r = Math.min(1.0, n.fruitScale * 1.5);
-            const g = Math.max(0.1, 1.0 - n.fruitScale);
-            n.fruitMesh.material.color.setRGB(r, g * 0.6, 0.1);
-        } else if (n.fruitScale === 0 && n.fruitMesh) {
-            n.mesh.remove(n.fruitMesh);
-            n.fruitMesh = null;
-        }
-    });
-}
-
-/**
- * 6. 生体流動
- */
-function updateFlows() {
-    if (!flowMode) return;
-    const time = Date.now() * 0.005;
-    allNodes.forEach(n => {
-        if (!n.mesh) return;
-        const pulse = Math.sin(time - n.leafCount * 0.2) * 0.5 + 0.5;
-        n.mesh.material.emissive.setRGB(pulse * 0.2, pulse * 0.1, pulse * 0.05);
-    });
-}
-
-/**
- * 7. インタラクション (剪定)
- */
-function onHover(e) {
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-    allNodes.forEach(n => { if(n.mesh) n.mesh.material.emissive.set(0x000000); });
-    const intersects = raycaster.intersectObjects(allNodes.map(n => n.mesh).filter(m => m));
-    if (intersects.length > 0) intersects[0].object.material.emissive.set(0x551111);
-}
-
-function onPrune() {
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(allNodes.map(n => n.mesh).filter(m => m));
-    if (intersects.length > 0) {
-        const id = intersects[0].object.userData.nodeId;
-        const target = allNodes.find(n => n.id === id);
-        if (target && target.parent) {
-            const kill = (node) => {
-                node.children.forEach(kill);
-                cleanupNode(node);
-                allNodes = allNodes.filter(x => x.id !== node.id);
-            };
-            target.parent.children = target.parent.children.filter(c => c.id !== target.id);
-            kill(target);
-            root.nsc += 50; 
-            root.updateStructure();
-            updateTree();
-            updateUI();
-        }
-    }
-}
-
-/**
- * 8. UI制御
- */
-function updateUI() {
-    const s = getSeason();
-    const badge = document.getElementById('season-badge');
-    if (badge) {
-        badge.innerText = s.name.split('（')[0];
-        badge.style.borderColor = s.color;
-        badge.style.color = s.color;
-    }
-    const nameEl = document.getElementById('season-name');
-    if (nameEl) nameEl.innerText = s.name;
-
-    const dayEl = document.getElementById('day-display');
-    if (dayEl) dayEl.innerText = day.toString().padStart(3, '0');
-
-    const sWeight = allNodes.length;
-    const rWeight = 150;
-    const trEl = document.getElementById('tr-val');
-    if (trEl) trEl.innerText = (sWeight / rWeight).toFixed(2);
-    
-    const shootBar = document.getElementById('tr-shoot');
-    if (shootBar) shootBar.style.width = `${Math.min(100, (sWeight/(sWeight+rWeight))*100)}%`;
-    
-    const weightEl = document.getElementById('weight-val');
-    const fruits = allNodes.filter(n => n.fruitScale > 0.8).length;
-    if (weightEl) weightEl.innerHTML = `${(fruits * 0.35).toFixed(1)}<span class="text-xs ml-1 font-bold">kg</span>`;
-    
-    const nscEl = document.getElementById('nsc-val');
-    if (nscEl) nscEl.innerText = root.nsc.toFixed(1);
-    
-    const statusEl = document.getElementById('status-bar');
-    if (statusEl) statusEl.innerText = s.msg;
-}
-
-function onResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    
-    if (isPlaying) {
-        frameCount++;
-        if (frameCount >= (21 - speed)) {
-            step();
-            frameCount = 0;
-        }
-    }
-    
-    if (flowMode) updateFlows();
-    renderer.render(scene, camera);
-}
-
-// Controls
-document.getElementById('btn-play').onclick = () => {
-    isPlaying = !isPlaying;
-    document.getElementById('play-text').innerText = isPlaying ? "一時停止" : "シミュレーション開始";
-    document.getElementById('play-icon').innerText = isPlaying ? "⏸" : "▶";
-};
-document.getElementById('btn-step').onclick = step;
-document.getElementById('btn-reset').onclick = reset;
-document.getElementById('speed-slider').oninput = (e) => {
-    speed = parseInt(e.target.value);
-    document.getElementById('speed-label').innerText = speed + "x";
-};
-document.getElementById('toggle-flow').onclick = (e) => {
-    flowMode = !flowMode;
-    e.target.innerText = flowMode ? "生体流動モード (ON)" : "生体流動モード (OFF)";
-    e.target.classList.toggle('border-emerald-400');
-    e.target.classList.toggle('text-emerald-600');
-};
-
-window.onload = init;
-</script>
+  </script>
 </body>
 </html>
