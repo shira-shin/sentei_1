@@ -1,441 +1,559 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Apple FSPM - Seasonal Pruning Lab</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple FSPM - Professional Botanical Twin v7.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      body {
-        margin: 0;
-        background-color: #0d1117;
-        color: #e6edf3;
-        overflow: hidden;
-        font-family: "Segoe UI", sans-serif;
-      }
-      canvas {
-        display: block;
-      }
-      .glass {
-        background: rgba(22, 27, 34, 0.85);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(48, 54, 61, 0.5);
-      }
-      .seasonal-badge {
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        font-weight: bold;
-        text-transform: uppercase;
-      }
-      .season-winter {
-        background: #1e3a8a;
-        color: #bfdbfe;
-      }
-      .season-spring {
-        background: #064e3b;
-        color: #a7f3d0;
-      }
-      .season-summer {
-        background: #78350f;
-        color: #fde68a;
-      }
-      .season-autumn {
-        background: #7c2d12;
-        color: #ffedd5;
-      }
+        body { margin: 0; background: #fdfdfd; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; }
+        canvas { display: block; touch-action: none; }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
+        input[type="range"] { accent-color: #0f172a; }
+        #ui-layer { pointer-events: none; }
+        #ui-layer > * { pointer-events: auto; }
+        .season-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
     </style>
-  </head>
-  <body>
-    <div id="ui" class="fixed inset-0 pointer-events-none z-10 flex flex-col justify-between p-6">
-      <div class="flex justify-between items-start pointer-events-auto">
-        <div class="glass rounded-xl p-4">
-          <div class="mb-1 flex items-center gap-3">
-            <h1 class="text-xl font-bold text-white">Apple FSPM Lab</h1>
-            <span id="season-badge" class="seasonal-badge season-winter">冬季 (剪定期)</span>
-          </div>
-          <div class="text-sm text-gray-400">
-            Day <span id="day-val" class="font-mono text-white">0</span> / 360 -
-            <span id="date-msg">休眠期です。剪定を行ってください。</span>
-          </div>
-        </div>
+</head>
+<body>
 
-        <div class="flex gap-2">
-          <button
-            id="btn-next"
-            class="glass px-6 py-3 rounded-lg transition hover:bg-white/10 active:scale-95"
-          >
-            1日進める
-          </button>
-          <button
-            id="btn-auto"
-            class="glass px-6 py-3 rounded-lg border-lime-500/30 text-lime-400 transition hover:bg-lime-500/20"
-          >
-            自動成長
-          </button>
-          <button
-            id="btn-reset"
-            class="glass px-4 py-3 rounded-lg border-red-500/30 text-sm text-red-400 transition hover:bg-red-500/20"
-          >
-            Reset
-          </button>
-        </div>
-      </div>
-
-      <div class="flex justify-between items-end">
-        <div class="glass w-72 rounded-xl p-4 pointer-events-auto">
-          <h3 class="mb-3 text-xs font-bold uppercase tracking-tighter text-gray-500">生理状態スコア</h3>
-          <div class="space-y-4">
-            <div>
-              <div class="mb-1 flex justify-between text-[10px]">
-                <span>T/Rバランス (Shoot:Root)</span><span id="tr-val">1.0</span>
-              </div>
-              <div class="flex h-1 overflow-hidden rounded-full bg-gray-800">
-                <div id="tr-bar-s" class="h-full bg-emerald-400" style="width: 50%"></div>
-                <div id="tr-bar-r" class="h-full bg-orange-500" style="width: 50%"></div>
-              </div>
+<div id="ui-layer" class="fixed inset-0 z-10 p-8 flex flex-col justify-between">
+    <!-- Top Row: Control & Stats -->
+    <div class="flex justify-between items-start">
+        <div class="glass p-8 rounded-[2.5rem] w-96 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h1 class="text-2xl font-black text-slate-800 tracking-tighter italic">APPLE <span class="text-rose-600">DIGITAL</span></h1>
+                <div id="season-badge" class="px-4 py-1 rounded-full text-[10px] font-black border-2 transition-all duration-1000 uppercase">Winter</div>
             </div>
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="text-[10px] text-gray-500">推定果実重量</div>
-                <div id="fruit-weight" class="text-lg font-mono text-orange-400">0.0 kg</div>
-              </div>
-              <div>
-                <div class="text-right text-[10px] text-gray-500">エネルギー(NSC)</div>
-                <div id="nsc-val" class="text-right text-lg font-mono text-lime-400">0.0</div>
-              </div>
+            
+            <div class="flex items-end gap-3 mb-6">
+                <div class="text-6xl font-mono font-black text-slate-700 leading-none" id="day-display">000</div>
+                <div class="text-xs text-slate-400 font-bold uppercase tracking-widest pb-1">Days Passed<br><span id="season-name" class="text-slate-900 font-bold">休眠剪定期</span></div>
             </div>
-          </div>
+
+            <div class="space-y-4 mb-6">
+                <button id="btn-play" class="w-full py-4 rounded-2xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition transform active:scale-95 shadow-xl flex items-center justify-center gap-3">
+                    <span id="play-icon" class="text-xl">▶</span> <span id="play-text" class="tracking-widest">START SIMULATION</span>
+                </button>
+                
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <div class="flex justify-between text-[10px] font-black text-slate-400 uppercase mb-2">
+                        <span>シミュレーション速度</span>
+                        <span id="speed-label">5x</span>
+                    </div>
+                    <input type="range" id="speed-slider" min="1" max="20" value="5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <div class="flex gap-2">
+                    <button id="btn-step" class="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold hover:bg-white transition">1日進む</button>
+                    <button id="btn-reset" class="px-4 py-3 rounded-xl border border-red-50 text-red-500 text-xs font-bold hover:bg-red-50 transition uppercase">Reset</button>
+                </div>
+            </div>
         </div>
 
-        <div class="glass max-w-xs rounded-xl p-4 text-[10px] text-gray-400 pointer-events-auto">
-          <p>
-            <span class="text-white">【操作】</span><br />
-            ・枝を<span class="text-red-400">クリック</span>：剪定（冬季のみ推奨）<br />
-            ・冬の剪定が来年の枝振りと実りに直結します。<br />
-            ・ドラッグ：視点回転、スクロール：ズーム
-          </p>
+        <!-- Dashboard -->
+        <div class="glass p-8 rounded-[2.5rem] w-84 shadow-2xl">
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 pb-2">Physiological Telemetry</h3>
+            <div class="space-y-8">
+                <div>
+                    <div class="flex justify-between text-[11px] mb-3 font-black text-slate-600 uppercase">
+                        <span>T/R Balance</span>
+                        <span id="tr-val">1.00</span>
+                    </div>
+                    <div class="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner border border-slate-200">
+                        <div id="tr-shoot" class="h-full bg-emerald-500 transition-all duration-700" style="width: 50%"></div>
+                        <div id="tr-root" class="h-full bg-amber-500 transition-all duration-700" style="width: 50%"></div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="bg-rose-50/50 p-4 rounded-3xl border border-rose-100 flex justify-between items-center">
+                        <span class="text-[10px] font-black text-rose-400 uppercase">推定果実重</span>
+                        <span id="weight-val" class="text-3xl font-black text-rose-600">0.0<span class="text-sm ml-1 font-bold">kg</span></span>
+                    </div>
+                    <div class="bg-amber-50/50 p-4 rounded-3xl border border-amber-100 flex justify-between items-center">
+                        <span class="text-[10px] font-black text-amber-500 uppercase">貯蔵養分 (NSC)</span>
+                        <span id="nsc-val" class="text-3xl font-black text-amber-600">0.0</span>
+                    </div>
+                </div>
+
+                <button id="toggle-flow" class="w-full py-4 rounded-2xl border-2 border-slate-200 text-[11px] font-black text-slate-400 hover:border-emerald-400 hover:text-emerald-600 transition uppercase tracking-widest">
+                    生体流動モード (OFF)
+                </button>
+            </div>
         </div>
-      </div>
     </div>
 
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-        }
-      }
-    </script>
+    <!-- Status Bar -->
+    <div class="flex justify-between items-end">
+        <div class="glass p-6 rounded-[2rem] max-w-lg border-l-8 border-slate-800 shadow-2xl">
+            <div id="status-bar" class="text-sm font-bold text-slate-700 leading-relaxed italic">
+                「冬季：剪定を行ってください。2年枝以上の短果枝（短い枝）は花がつきやすい傾向にあります。」
+            </div>
+        </div>
+        <div class="flex flex-col items-end gap-2">
+             <div class="glass px-6 py-3 rounded-2xl text-[10px] font-black text-slate-400 flex gap-6 uppercase tracking-widest shadow-lg">
+                <div class="flex items-center"><span class="season-dot bg-[#a1887f] mr-2"></span>1年枝</div>
+                <div class="flex items-center"><span class="season-dot bg-[#4e342e] mr-2"></span>2年枝+</div>
+                <div class="flex items-center"><span class="season-dot bg-white border border-slate-200 mr-2"></span>花</div>
+                <div class="flex items-center"><span class="season-dot bg-red-500 mr-2"></span>実</div>
+            </div>
+            <div class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Mouse Wheel: Zoom | Drag: Rotate | Click: Prune</div>
+        </div>
+    </div>
+</div>
 
-    <script type="module">
-      import * as THREE from "three";
-      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 
-      const SEASONS = {
-        WINTER: {
-          name: "冬季 (剪定期)",
-          start: 0,
-          end: 90,
-          class: "season-winter",
-          msg: "剪定の季節です。来年の樹形を整えましょう。",
-        },
-        SPRING: {
-          name: "春季 (芽吹き)",
-          start: 91,
-          end: 150,
-          class: "season-spring",
-          msg: "芽が動き出しました。エネルギーを消費します。",
-        },
-        SUMMER: {
-          name: "夏季 (伸長期)",
-          start: 151,
-          end: 270,
-          class: "season-summer",
-          msg: "光合成が活発です。果実が肥大します。",
-        },
-        AUTUMN: {
-          name: "秋季 (収穫期)",
-          start: 271,
-          end: 360,
-          class: "season-autumn",
-          msg: "収穫の秋です。貯蔵養分を蓄えます。",
-        },
-      };
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-      const GENOTYPE = {
-        FUJI: {
-          internode: 4.0,
-          angle: 0.6,
-          apical_dominance: 0.85,
-          growth_cost: 5.0,
-        },
-      };
+/**
+ * 1. 植物学的定数
+ */
+const SEASONS = {
+    WINTER: { name: "冬季休眠期", start: 0, end: 90, color: "#64748b", msg: "休眠期です。冬の剪定は春の勢いを決定します。" },
+    SPRING: { name: "春季開花・展葉", start: 91, end: 150, color: "#10b981", msg: "春です。貯蔵養分を消費して開花と展葉が始まります。" },
+    SUMMER: { name: "夏季果実肥大", start: 151, end: 270, color: "#f59e0b", msg: "夏です。光合成産物が果実へと送られています。" },
+    AUTUMN: { name: "秋季成熟・収穫", start: 271, end: 360, color: "#e11d48", msg: "秋です。リンゴが赤く色付き、収穫の時を迎えました。" }
+};
 
-      class Metamer {
-        constructor(parent = null) {
-          this.id = Math.random().toString(36).substr(2, 9);
-          this.parent = parent;
-          this.children = [];
+const VARIETY = {
+    internode_len: 4.8,
+    spur_len: 1.4,
+    leaf_size: 2.8,
+    apical_dominance: 0.85,
+    flower_chance: 0.65,
+    growth_threshold: 4.0
+};
 
-          this.length = GENOTYPE.FUJI.internode;
-          this.thickness = 0.2;
-          this.angleX = parent ? Math.random() * 0.4 + 0.3 : 0;
-          this.rotationY = parent ? parent.rotationY + 2.399 : 0;
+/**
+ * 2. メタマー（節間）クラス
+ */
+class Metamer {
+    constructor(parent = null, type = 'shoot') {
+        this.id = Math.random().toString(36).substr(2, 9);
+        this.parent = parent;
+        this.children = [];
+        this.type = type; // 'shoot' (長果枝), 'spur' (短果枝), 'trunk' (主幹)
+        this.age = 0; 
 
-          this.nsc = 5.0;
-          this.hasLeaf = false;
-          this.hasFruit = false;
-          this.fruitWeight = 0;
+        this.length = (type === 'spur' ? VARIETY.spur_len : VARIETY.internode_len) * (0.8 + Math.random() * 0.4);
+        this.thickness = 0.4;
+        this.angleX = parent ? (type === 'spur' ? 1.4 : 0.4 + Math.random() * 0.1) : 0;
+        this.rotationY = parent ? parent.rotationY + 2.399 : 0; 
 
-          this.mesh = null;
-          this.leafMesh = null;
-          this.fruitMesh = null;
-        }
+        this.nsc = parent ? 0.0 : 180.0; 
+        this.hasLeaf = false;
+        this.isFlowering = false;
+        this.fruitScale = 0; // 実の大きさ (0 to 1)
+        this.leafCount = 0;
+        
+        this.mesh = null;
+        this.leafMeshes = [];
+        this.flowerMeshes = [];
+        this.fruitMesh = null;
+    }
 
-        updateStructure() {
-          let descendantLeaves = this.hasLeaf ? 1 : 0;
-          this.children.forEach((child) => {
-            child.updateStructure();
-            descendantLeaves += child.leafCount;
-          });
-          this.leafCount = descendantLeaves;
-          this.thickness = 0.12 * Math.sqrt(descendantLeaves + 1);
-        }
-      }
-
-      let scene;
-      let camera;
-      let renderer;
-      let controls;
-      let raycaster;
-      let root = null;
-      let allNodes = [];
-      let currentDay = 0;
-      let isAuto = false;
-      const mouse = new THREE.Vector2();
-
-      function init() {
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0d1117);
-
-        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(20, 30, 60);
-
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        document.body.appendChild(renderer.domElement);
-
-        controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-
-        raycaster = new THREE.Raycaster();
-
-        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-        scene.add(ambient);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-        sun.position.set(50, 100, 50);
-        scene.add(sun);
-
-        scene.add(new THREE.GridHelper(100, 20, 0x222222, 0x111111));
-
-        window.addEventListener("resize", onResize);
-        window.addEventListener("mousedown", onPrune);
-
-        reset();
-        animate();
-      }
-
-      function reset() {
-        allNodes.forEach((node) => cleanupNode(node));
-        root = new Metamer();
-        allNodes = [root];
-        currentDay = 0;
-        updateVisuals();
-        updateUI();
-      }
-
-      function cleanupNode(node) {
-        if (node.mesh) scene.remove(node.mesh);
-        if (node.leafMesh) scene.remove(node.leafMesh);
-        if (node.fruitMesh) scene.remove(node.fruitMesh);
-      }
-
-      function getCurrentSeason() {
-        for (const key in SEASONS) {
-          if (currentDay >= SEASONS[key].start && currentDay <= SEASONS[key].end) {
-            return SEASONS[key];
-          }
-        }
-        return SEASONS.WINTER;
-      }
-
-      function step() {
-        currentDay = (currentDay + 1) % 361;
-        const season = getCurrentSeason();
-
-        allNodes.forEach((node) => {
-          if (node.hasLeaf && season !== SEASONS.WINTER) {
-            node.nsc += 0.8;
-          }
-          node.nsc -= 0.1;
-
-          if (currentDay === 91) node.hasLeaf = true;
-          if (currentDay === 151 && Math.random() < 0.2) node.hasFruit = true;
-          if (currentDay === 271) {
-            node.hasFruit = false;
-          }
-          if (currentDay === 330) node.hasLeaf = false;
+    updateStructure() {
+        let descendantLeafCount = this.hasLeaf ? (this.type === 'spur' ? 8 : 4) : 0;
+        this.children.forEach(c => {
+            c.updateStructure();
+            descendantLeafCount += c.leafCount;
         });
+        this.leafCount = descendantLeafCount;
+        // パイプモデル理論：末端の総葉面積に比例して基部が太くなる
+        this.thickness = 0.25 * Math.pow(descendantLeafCount + 1, 0.62);
+    }
+}
 
-        if (currentDay > 90 && currentDay < 250) {
-          const newNodes = [];
-          allNodes.forEach((node) => {
-            if (node.children.length < 2 && node.nsc > GENOTYPE.FUJI.growth_cost) {
-              const isApex = node.children.length === 0;
-              if (isApex || Math.random() < 0.05) {
-                const child = new Metamer(node);
-                child.angleX = isApex ? 0.1 : GENOTYPE.FUJI.angle;
-                node.nsc -= GENOTYPE.FUJI.growth_cost;
-                node.children.push(child);
-                newNodes.push(child);
-              }
+/**
+ * 3. 描画・システム・コア
+ */
+let scene, camera, renderer, controls, raycaster;
+let root = null;
+let allNodes = [];
+let day = 0;
+let isPlaying = false;
+let flowMode = false;
+let speed = 5;
+let frameCount = 0;
+const mouse = new THREE.Vector2();
+
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xfcfcfc);
+    
+    camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 2000);
+    camera.position.set(100, 100, 180);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // OrbitControls: ズーム設定を強化
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.screenSpacePanning = true;
+    controls.minDistance = 20;
+    controls.maxDistance = 1000;
+    controls.target.set(0, 40, 0);
+
+    raycaster = new THREE.Raycaster();
+
+    // 高級ライティング (三点照明)
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambient);
+    
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    keyLight.position.set(80, 150, 80);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.PointLight(0xeef2ff, 1.0);
+    fillLight.position.set(-80, 50, -50);
+    scene.add(fillLight);
+
+    const grid = new THREE.GridHelper(400, 40, 0xe2e8f0, 0xf1f5f9);
+    grid.position.y = -0.1;
+    scene.add(grid);
+
+    window.addEventListener('resize', onResize);
+    window.addEventListener('mousemove', onHover);
+    window.addEventListener('click', onPrune);
+
+    reset();
+    animate();
+}
+
+function reset() {
+    allNodes.forEach(n => cleanupNode(n));
+    root = new Metamer(null, 'trunk');
+    allNodes = [root];
+    day = 0;
+    updateTree();
+    updateUI();
+}
+
+function cleanupNode(n) {
+    if (n.mesh) {
+        if (n.parent && n.parent.mesh) n.parent.mesh.remove(n.mesh);
+        else scene.remove(n.mesh);
+    }
+}
+
+function getSeason() {
+    for (let key in SEASONS) {
+        if (day >= SEASONS[key].start && day <= SEASONS[key].end) return SEASONS[key];
+    }
+    return SEASONS.WINTER;
+}
+
+/**
+ * 4. 生物学成長ステップ
+ */
+function step() {
+    const oldDay = day;
+    day = (day + 1) % 361;
+    const season = getSeason();
+
+    if (oldDay === 360 && day === 0) {
+        allNodes.forEach(n => n.age++);
+    }
+
+    allNodes.forEach(n => {
+        // 光合成産物の計算
+        if (n.hasLeaf && season !== SEASONS.WINTER) {
+            n.nsc += 3.2 * (1.1 - Math.min(0.6, n.thickness * 0.06));
+        }
+        n.nsc -= 0.18; // 代謝
+
+        // 季節イベントのトリガー
+        if (day === 91) n.hasLeaf = true; 
+        
+        // 開花 (春)
+        if (day === 95 && n.type === 'spur' && n.age >= 1) {
+            if (Math.random() < VARIETY.flower_chance) n.isFlowering = true;
+        }
+        // 結実 (初夏)
+        if (day === 140 && n.isFlowering) {
+            n.isFlowering = false;
+            n.fruitScale = 0.1;
+        }
+        // 実の肥大 (夏)
+        if (n.fruitScale > 0 && day > 140 && day < 270) {
+            n.fruitScale += 0.01;
+            if (n.fruitScale > 1.0) n.fruitScale = 1.0;
+        }
+        // 落葉・落果 (冬入り)
+        if (day === 320) { 
+            n.hasLeaf = false; 
+            n.isFlowering = false;
+            n.fruitScale = 0; 
+        }
+    });
+
+    // 成長プロセス (長果枝の伸長)
+    if (day > 100 && day < 240) {
+        const born = [];
+        allNodes.forEach(n => {
+            if (n.children.length < 3 && n.nsc > VARIETY.growth_threshold) {
+                const isApex = n.children.length === 0;
+                const prob = isApex ? 0.35 : 0.02;
+                if (Math.random() < prob) {
+                    const nextType = (isApex || Math.random() > 0.7) ? 'shoot' : 'spur';
+                    const child = new Metamer(n, nextType);
+                    n.nsc -= VARIETY.growth_threshold;
+                    n.children.push(child);
+                    born.push(child);
+                }
             }
-          });
-          allNodes.push(...newNodes);
-        }
+        });
+        allNodes.push(...born);
+    }
 
-        if (currentDay % 5 === 0) {
-          root.updateStructure();
-          updateVisuals();
-        }
-        updateUI();
-      }
+    root.updateStructure();
+    updateTree();
+    updateUI();
+}
 
-      function updateVisuals() {
-        allNodes.forEach((node) => {
-          if (!node.mesh) {
-            const geo = new THREE.CylinderGeometry(0.1, 0.1, node.length, 6);
-            geo.translate(0, node.length / 2, 0);
-            node.mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
-            node.mesh.userData = { nodeId: node.id };
-            if (node.parent) {
-              node.parent.mesh.add(node.mesh);
-              node.mesh.position.set(0, node.parent.length, 0);
-              node.mesh.rotation.x = node.angleX;
-              node.mesh.rotation.y = node.rotationY;
+/**
+ * 5. 3Dビジュアライゼーション
+ */
+function updateTree() {
+    allNodes.forEach(n => {
+        // 1. 枝（経年による色変化）
+        if (!n.mesh) {
+            const geo = new THREE.CylinderGeometry(0.1, 0.1, n.length, 16);
+            geo.translate(0, n.length / 2, 0);
+            const mat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
+            n.mesh = new THREE.Mesh(geo, mat);
+            n.mesh.userData = { nodeId: n.id };
+            n.mesh.castShadow = true;
+            n.mesh.receiveShadow = true;
+
+            if (n.parent && n.parent.mesh) {
+                n.parent.mesh.add(n.mesh);
+                n.mesh.position.set(0, n.parent.length, 0);
+                n.mesh.rotation.x = n.angleX;
+                n.mesh.rotation.y = n.rotationY;
             } else {
-              scene.add(node.mesh);
+                scene.add(n.mesh);
             }
-          }
-          node.mesh.scale.set(node.thickness * 5, 1, node.thickness * 5);
+        }
+        
+        n.mesh.material.color.set(n.age === 0 ? 0xa1887f : 0x4e342e);
+        n.mesh.scale.set(n.thickness * 6, 1, n.thickness * 6);
 
-          if (node.hasLeaf && !node.leafMesh) {
-            const leafGeo = new THREE.SphereGeometry(0.5, 4, 4);
-            leafGeo.scale(1, 0.2, 1.5);
-            node.leafMesh = new THREE.Mesh(leafGeo, new THREE.MeshStandardMaterial({ color: 0x2d5a27 }));
-            node.leafMesh.position.set(0, node.length, 0.5);
-            node.mesh.add(node.leafMesh);
-          } else if (!node.hasLeaf && node.leafMesh) {
-            node.mesh.remove(node.leafMesh);
-            node.leafMesh = null;
-          }
+        // 2. 葉（解剖学的配置）
+        if (n.hasLeaf && n.leafMeshes.length === 0) {
+            const count = n.type === 'spur' ? 8 : 4;
+            for (let i = 0; i < count; i++) {
+                const leafShape = new THREE.Shape();
+                leafShape.moveTo(0, 0);
+                leafShape.quadraticCurveTo(1.2, 1.8, 0, 4);
+                leafShape.quadraticCurveTo(-1.2, 1.8, 0, 0);
+                const leafGeo = new THREE.ShapeGeometry(leafShape);
+                leafGeo.scale(0.3 * VARIETY.leaf_size, 0.4 * VARIETY.leaf_size, 1);
+                leafGeo.rotateX(-Math.PI / 2);
+                
+                const leafMat = new THREE.MeshStandardMaterial({ color: 0x388e3c, side: THREE.DoubleSide });
+                const leaf = new THREE.Mesh(leafGeo, leafMat);
+                
+                const yPos = (i / count) * n.length;
+                leaf.position.set(0, yPos, n.thickness * 0.2 + 0.1);
+                leaf.rotation.set(0.5, i * 2.399, 0.1); 
+                n.mesh.add(leaf);
+                n.leafMeshes.push(leaf);
+            }
+        } else if (!n.hasLeaf && n.leafMeshes.length > 0) {
+            n.leafMeshes.forEach(l => n.mesh.remove(l));
+            n.leafMeshes = [];
+        }
 
-          if (node.hasFruit && !node.fruitMesh) {
-            const fruitGeo = new THREE.SphereGeometry(0.4, 8, 8);
-            node.fruitMesh = new THREE.Mesh(fruitGeo, new THREE.MeshStandardMaterial({ color: 0xcc2222 }));
-            node.fruitMesh.position.set(0, 0.2, 0.5);
-            node.mesh.add(node.fruitMesh);
-          } else if (!node.hasFruit && node.fruitMesh) {
-            node.mesh.remove(node.fruitMesh);
-            node.fruitMesh = null;
-          }
-        });
-      }
+        // 3. 花（開花フェーズ）
+        if (n.isFlowering && n.flowerMeshes.length === 0) {
+            for(let j=0; j<5; j++) {
+                const fGroup = new THREE.Group();
+                for(let k=0; k<5; k++) {
+                    const pGeo = new THREE.CircleGeometry(0.35, 8);
+                    const pMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+                    const p = new THREE.Mesh(pGeo, pMat);
+                    p.rotation.x = Math.PI/2;
+                    p.position.set(Math.cos(k)*0.4, 0, Math.sin(k)*0.4);
+                    fGroup.add(p);
+                }
+                fGroup.position.set(0, n.length, 0);
+                fGroup.rotation.y = j;
+                n.mesh.add(fGroup);
+                n.flowerMeshes.push(fGroup);
+            }
+        } else if (!n.isFlowering && n.flowerMeshes.length > 0) {
+            n.flowerMeshes.forEach(f => n.mesh.remove(f));
+            n.flowerMeshes = [];
+        }
 
-      function onPrune(event) {
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
+        // 4. 実（肥大アニメーション）
+        if (n.fruitScale > 0) {
+            if (!n.fruitMesh) {
+                const aGeo = new THREE.SphereGeometry(1, 24, 24);
+                const aMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f, roughness: 0.3 });
+                n.fruitMesh = new THREE.Mesh(aGeo, aMat);
+                n.mesh.add(n.fruitMesh);
+            }
+            // 実の成長をスケールに反映
+            const s = n.fruitScale * 1.2;
+            n.fruitMesh.scale.set(s, s*0.9, s);
+            n.fruitMesh.position.set(0, n.length * 0.8, n.thickness * 0.3 + s * 0.8);
+            // 色の変化 (夏は緑っぽく、秋は赤く)
+            const r = Math.min(1.0, n.fruitScale * 1.5);
+            const g = Math.max(0.1, 1.0 - n.fruitScale);
+            n.fruitMesh.material.color.setRGB(r, g * 0.6, 0.1);
+        } else if (n.fruitScale === 0 && n.fruitMesh) {
+            n.mesh.remove(n.fruitMesh);
+            n.fruitMesh = null;
+        }
+    });
+}
 
-        const intersects = raycaster.intersectObjects(
-          allNodes.map((node) => node.mesh).filter((mesh) => mesh),
-        );
-        if (intersects.length > 0) {
-          const id = intersects[0].object.userData.nodeId;
-          const target = allNodes.find((node) => node.id === id);
-          if (target && target.parent) {
-            pruneSubtree(target);
+/**
+ * 6. 生体流動
+ */
+function updateFlows() {
+    if (!flowMode) return;
+    const time = Date.now() * 0.005;
+    allNodes.forEach(n => {
+        if (!n.mesh) return;
+        const pulse = Math.sin(time - n.leafCount * 0.2) * 0.5 + 0.5;
+        n.mesh.material.emissive.setRGB(pulse * 0.2, pulse * 0.1, pulse * 0.05);
+    });
+}
+
+/**
+ * 7. インタラクション (剪定)
+ */
+function onHover(e) {
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    allNodes.forEach(n => { if(n.mesh) n.mesh.material.emissive.set(0x000000); });
+    const intersects = raycaster.intersectObjects(allNodes.map(n => n.mesh).filter(m => m));
+    if (intersects.length > 0) intersects[0].object.material.emissive.set(0x551111);
+}
+
+function onPrune() {
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(allNodes.map(n => n.mesh).filter(m => m));
+    if (intersects.length > 0) {
+        const id = intersects[0].object.userData.nodeId;
+        const target = allNodes.find(n => n.id === id);
+        if (target && target.parent) {
+            const kill = (node) => {
+                node.children.forEach(kill);
+                cleanupNode(node);
+                allNodes = allNodes.filter(x => x.id !== node.id);
+            };
+            target.parent.children = target.parent.children.filter(c => c.id !== target.id);
+            kill(target);
+            root.nsc += 50; 
+            root.updateStructure();
+            updateTree();
             updateUI();
-          }
         }
-      }
+    }
+}
 
-      function pruneSubtree(node) {
-        if (node.parent) {
-          node.parent.children = node.parent.children.filter((child) => child.id !== node.id);
+/**
+ * 8. UI制御
+ */
+function updateUI() {
+    const s = getSeason();
+    const badge = document.getElementById('season-badge');
+    if (badge) {
+        badge.innerText = s.name.split('（')[0];
+        badge.style.borderColor = s.color;
+        badge.style.color = s.color;
+    }
+    const nameEl = document.getElementById('season-name');
+    if (nameEl) nameEl.innerText = s.name;
+
+    const dayEl = document.getElementById('day-display');
+    if (dayEl) dayEl.innerText = day.toString().padStart(3, '0');
+
+    const sWeight = allNodes.length;
+    const rWeight = 150;
+    const trEl = document.getElementById('tr-val');
+    if (trEl) trEl.innerText = (sWeight / rWeight).toFixed(2);
+    
+    const shootBar = document.getElementById('tr-shoot');
+    if (shootBar) shootBar.style.width = `${Math.min(100, (sWeight/(sWeight+rWeight))*100)}%`;
+    
+    const weightEl = document.getElementById('weight-val');
+    const fruits = allNodes.filter(n => n.fruitScale > 0.8).length;
+    if (weightEl) weightEl.innerHTML = `${(fruits * 0.35).toFixed(1)}<span class="text-xs ml-1 font-bold">kg</span>`;
+    
+    const nscEl = document.getElementById('nsc-val');
+    if (nscEl) nscEl.innerText = root.nsc.toFixed(1);
+    
+    const statusEl = document.getElementById('status-bar');
+    if (statusEl) statusEl.innerText = s.msg;
+}
+
+function onResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    
+    if (isPlaying) {
+        frameCount++;
+        if (frameCount >= (21 - speed)) {
+            step();
+            frameCount = 0;
         }
+    }
+    
+    if (flowMode) updateFlows();
+    renderer.render(scene, camera);
+}
 
-        const toRemove = [];
-        const collect = (current) => {
-          toRemove.push(current);
-          current.children.forEach(collect);
-        };
-        collect(node);
+// Controls
+document.getElementById('btn-play').onclick = () => {
+    isPlaying = !isPlaying;
+    document.getElementById('play-text').innerText = isPlaying ? "一時停止" : "シミュレーション開始";
+    document.getElementById('play-icon').innerText = isPlaying ? "⏸" : "▶";
+};
+document.getElementById('btn-step').onclick = step;
+document.getElementById('btn-reset').onclick = reset;
+document.getElementById('speed-slider').oninput = (e) => {
+    speed = parseInt(e.target.value);
+    document.getElementById('speed-label').innerText = speed + "x";
+};
+document.getElementById('toggle-flow').onclick = (e) => {
+    flowMode = !flowMode;
+    e.target.innerText = flowMode ? "生体流動モード (ON)" : "生体流動モード (OFF)";
+    e.target.classList.toggle('border-emerald-400');
+    e.target.classList.toggle('text-emerald-600');
+};
 
-        toRemove.forEach((current) => {
-          cleanupNode(current);
-          allNodes = allNodes.filter((item) => item.id !== current.id);
-        });
-
-        root.updateStructure();
-        updateVisuals();
-      }
-
-      function updateUI() {
-        const season = getCurrentSeason();
-        const badge = document.getElementById("season-badge");
-        badge.innerText = season.name;
-        badge.className = `seasonal-badge ${season.class}`;
-
-        document.getElementById("day-val").innerText = currentDay;
-        document.getElementById("date-msg").innerText = season.msg;
-
-        const shootWeight = allNodes.length;
-        const rootWeight = 50;
-        const tr = (shootWeight / rootWeight).toFixed(2);
-        document.getElementById("tr-val").innerText = tr;
-
-        const shootWidth = Math.min(100, (shootWeight / (shootWeight + rootWeight)) * 100);
-        document.getElementById("tr-bar-s").style.width = `${shootWidth}%`;
-        document.getElementById("tr-bar-r").style.width = `${100 - shootWidth}%`;
-
-        const fruits = allNodes.filter((node) => node.hasFruit).length;
-        document.getElementById("fruit-weight").innerText = `${(fruits * 0.3).toFixed(1)} kg`;
-        document.getElementById("nsc-val").innerText = root.nsc.toFixed(1);
-      }
-
-      function onResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      }
-
-      function animate() {
-        requestAnimationFrame(animate);
-        controls.update();
-        if (isAuto) step();
-        renderer.render(scene, camera);
-      }
-
-      document.getElementById("btn-next").onclick = step;
-      document.getElementById("btn-auto").onclick = () => {
-        isAuto = !isAuto;
-      };
-      document.getElementById("btn-reset").onclick = reset;
-
-      window.onload = init;
-    </script>
-  </body>
+window.onload = init;
+</script>
+</body>
 </html>
