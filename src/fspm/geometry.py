@@ -38,19 +38,3 @@ def compute_growth_direction(inputs: TropismInputs, weights: GrowthDirectionWeig
         _scale(inputs.parent_vector, weights.inertia),
     )
     return combined
-
-
-def compute_pipe_diameter(total_leaf_area_cm2: float, base_area_cm2: float = 1.0) -> float:
-    """Compute stem diameter using pipe-model proportionality."""
-
-    if total_leaf_area_cm2 <= 0:
-        return 0.0
-    return (total_leaf_area_cm2 / base_area_cm2) ** 0.5
-
-
-def compute_branch_sag(weight_g: float, elasticity: float, length_cm: float) -> float:
-    """Estimate sag angle (degrees) from weight and elasticity."""
-
-    if elasticity <= 0:
-        return 0.0
-    return min(90.0, (weight_g * length_cm) / (elasticity * 10.0))
