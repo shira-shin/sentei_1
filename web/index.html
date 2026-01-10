@@ -54,9 +54,9 @@
           <div class="bg-slate-900/60 rounded-2xl p-4">
             <div class="flex justify-between text-[10px] uppercase font-black text-slate-400 mb-2">
               <span>1日あたりの秒数</span>
-              <span id="speed-label">6.0s</span>
+              <span id="speed-label">3.0s</span>
             </div>
-            <input id="speed-slider" type="range" min="2" max="20" step="0.5" value="6" class="w-full" />
+            <input id="speed-slider" type="range" min="1" max="20" step="0.5" value="3" class="w-full" />
           </div>
           <div class="grid grid-cols-2 gap-2">
             <button id="btn-step" class="py-2 rounded-xl border border-slate-600 text-xs font-bold uppercase hover:bg-slate-800 transition">1日進める</button>
@@ -193,7 +193,7 @@
     let metamerGroup = new THREE.Group();
     let day = 0;
     let isPlaying = false;
-    let secondsPerDay = 6;
+    let secondsPerDay = 3;
     let pruneMode = false;
     let lastFrame = 0;
     let timeAccumulator = 0;
@@ -248,7 +248,7 @@
       controls.minDistance = 8;
       controls.maxDistance = 240;
       controls.maxPolarAngle = Math.PI * 0.85;
-      controls.target.set(0, 12, 0);
+      controls.target.set(0, 0, 0);
       controls.update();
       defaultCameraPosition = camera.position.clone();
       defaultCameraTarget = controls.target.clone();
@@ -581,12 +581,13 @@
       const box = new THREE.Box3().setFromObject(metamerGroup);
       if (box.isEmpty()) return;
       const center = box.getCenter(new THREE.Vector3());
+      const rootFocus = root ? root.position.clone() : center.clone();
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
       const distance = Math.max(18, maxDim * 2.4);
       const viewDir = new THREE.Vector3(0.7, 0.6, 1).normalize();
-      camera.position.copy(center.clone().add(viewDir.multiplyScalar(distance)));
-      controls.target.copy(center);
+      camera.position.copy(rootFocus.clone().add(viewDir.multiplyScalar(distance)));
+      controls.target.copy(rootFocus);
       controls.update();
       defaultCameraPosition = camera.position.clone();
       defaultCameraTarget = controls.target.clone();
