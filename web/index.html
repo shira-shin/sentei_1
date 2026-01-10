@@ -35,7 +35,7 @@
   </style>
 </head>
 <body>
-  <div id="ui-layer" class="fixed inset-0 z-10 p-6 flex flex-col justify-between">
+  <div id="ui-layer" class="fixed inset-0 z-10 p-6 flex flex-col justify-between relative">
     <div class="flex justify-between items-start gap-6">
       <div class="glass rounded-3xl p-6 w-[360px]">
         <div class="flex items-center justify-between mb-4">
@@ -62,7 +62,7 @@
         </div>
       </div>
 
-      <div class="glass rounded-3xl p-6 w-[320px]">
+      <div id="physiology-dashboard" class="glass rounded-3xl p-6 w-[320px]">
         <h2 class="text-xs uppercase font-black text-slate-400 mb-4">Physiology Dashboard</h2>
         <div class="space-y-6">
           <div>
@@ -130,11 +130,21 @@
     const AUXIN_THRESHOLD = 0.6;
     const PIPE_EXPONENT = 2.5;
 
+    const MAX_DAYS = 365;
+    const PHENOLOGY = {
+      leafStart: 90,
+      leafEnd: 300,
+      fruitStart: 120,
+      fruitEnd: 280,
+      maxFruitSize: 2.8
+    };
+
     const SEASONS = [
       { name: "Dormant", start: 0, end: 90, color: "#94a3b8", msg: "Dormant phase: prune to unlock lateral buds." },
       { name: "Spring", start: 91, end: 180, color: "#38bdf8", msg: "Spring: buds activate and leaves emerge." },
-      { name: "Summer", start: 181, end: 300, color: "#f59e0b", msg: "Summer: photosynthesis fuels vigor." },
-      { name: "Autumn", start: 301, end: 360, color: "#f97316", msg: "Autumn: storage compounds accumulate." }
+      { name: "Summer", start: 181, end: 280, color: "#f59e0b", msg: "Summer: photosynthesis fuels vigor." },
+      { name: "Autumn", start: 281, end: 330, color: "#f97316", msg: "Autumn: fruit matures and storage compounds accumulate." },
+      { name: "Winter", start: 331, end: MAX_DAYS, color: "#38bdf8", msg: "Winter: leaf fall and pruning season." }
     ];
 
     class Metamer {
@@ -148,11 +158,14 @@
         this.nsc = parent ? 0 : 120;
         this.auxin = 0;
         this.budActive = true;
+        this.type = parent && level > 1 && Math.random() > 0.5 ? "spur" : "shoot";
         this.localQuat = new THREE.Quaternion();
         this.position = new THREE.Vector3();
         this.worldQuat = new THREE.Quaternion();
         this.mesh = null;
         this.budMesh = null;
+        this.leafMesh = null;
+        this.fruitMesh = null;
       }
     }
 
@@ -164,6 +177,7 @@
     let speed = 4;
     let pruneMode = false;
     let lastFrame = 0;
+    let seasonComplete = false;
 
     const ui = {
       day: document.getElementById("day-display"),
@@ -234,7 +248,7 @@
       root.worldQuat.copy(root.localQuat);
       root.position.set(0, 0, 0);
       growInitial(root, 3);
-      rebuildMeshes();
+      rebuildMeshes(day);
     }
 
     function growInitial(node, depth) {
@@ -288,7 +302,7 @@
       return Math.pow(node.radius, PIPE_EXPONENT);
     }
 
-    function rebuildMeshes() {
+    function rebuildMeshes(currentDay = day) {
       metamerGroup.clear();
       updateWorldTransforms(root);
       computeAuxin(root);
@@ -297,6 +311,8 @@
       const stemMat = new THREE.MeshStandardMaterial({ color: "#8b5e34", roughness: 0.6 });
       const budActiveMat = new THREE.MeshStandardMaterial({ color: "#7dd3fc", emissive: "#38bdf8", emissiveIntensity: 1.2 });
       const budDormantMat = new THREE.MeshStandardMaterial({ color: "#475569", emissive: "#0f172a", emissiveIntensity: 0.2 });
+      const leafMat = new THREE.MeshStandardMaterial({ color: "#2d5a27", side: THREE.DoubleSide, transparent: true, opacity: 0.0 });
+      const fruitMat = new THREE.MeshStandardMaterial({ color: "#991b1b", roughness: 0.4 });
 
       const queue = [root];
       while (queue.length) {
@@ -320,21 +336,61 @@
         metamerGroup.add(bud);
         node.budMesh = bud;
 
+        const leafGeo = new THREE.PlaneGeometry(3, 5);
+        const leaf = new THREE.Mesh(leafGeo, leafMat.clone());
+        leaf.position.copy(center.clone().add(axis.clone().multiplyScalar(node.length * 0.8)));
+        leaf.quaternion.copy(node.worldQuat);
+        leaf.rotateX(Math.PI / 2);
+        metamerGroup.add(leaf);
+        node.leafMesh = leaf;
+
+        const fruitGeo = new THREE.SphereGeometry(1, 16, 16);
+        const fruit = new THREE.Mesh(fruitGeo, fruitMat.clone());
+        fruit.position.copy(center.clone().add(axis.clone().multiplyScalar(node.length * 0.9)));
+        fruit.quaternion.copy(node.worldQuat);
+        metamerGroup.add(fruit);
+        node.fruitMesh = fruit;
+
+        applyPhenology(node, currentDay);
         node.children.forEach((child) => queue.push(child));
       }
     }
 
-    function simulateDay() {
-      day = (day + 1) % 361;
-      const season = SEASONS.find((s) => day >= s.start && day <= s.end) || SEASONS[0];
-      ui.day.textContent = day.toString().padStart(3, "0");
+    function updateSeasonUI(currentDay) {
+      const season = SEASONS.find((s) => currentDay >= s.start && currentDay <= s.end) || SEASONS[0];
+      ui.day.textContent = currentDay.toString().padStart(3, "0");
       ui.season.textContent = season.name;
       ui.season.style.borderColor = season.color;
+      ui.season.style.color = season.color;
       ui.status.textContent = season.msg;
+    }
 
-      growTree(root);
+    function endSeason() {
+      if (seasonComplete) return;
+      seasonComplete = true;
+      isPlaying = false;
+      ui.btnPlay.textContent = "Start";
+      updateSeasonUI(MAX_DAYS);
+      alert("一年が経過しました。冬季剪定を行ってください。");
+    }
+
+    function simulateDay() {
+      if (day >= MAX_DAYS) {
+        endSeason();
+        return;
+      }
+
+      day += 1;
+      if (day % 10 === 0) {
+        growTree(root);
+      }
       updatePhysiology();
-      rebuildMeshes();
+      rebuildMeshes(day);
+      updateSeasonUI(day);
+
+      if (day >= MAX_DAYS) {
+        endSeason();
+      }
     }
 
     function growTree(node) {
@@ -370,6 +426,25 @@
       ui.nscBar.style.width = `${THREE.MathUtils.clamp(metrics.totalNsc / 200, 0, 1) * 100}%`;
     }
 
+    function applyPhenology(node, currentDay) {
+      const leafVisible = currentDay >= PHENOLOGY.leafStart && currentDay <= PHENOLOGY.leafEnd;
+      node.leafMesh.visible = leafVisible;
+      if (leafVisible) {
+        const leafProgress = THREE.MathUtils.clamp((currentDay - PHENOLOGY.leafStart) / 30, 0, 1);
+        node.leafMesh.scale.setScalar(0.4 + leafProgress * 0.8);
+        node.leafMesh.material.opacity = 0.25 + leafProgress * 0.6;
+      }
+
+      if (node.type === "spur" && currentDay >= PHENOLOGY.fruitStart && currentDay <= PHENOLOGY.fruitEnd) {
+        node.fruitMesh.visible = true;
+        const growthPeriod = currentDay - PHENOLOGY.fruitStart;
+        const size = Math.min(PHENOLOGY.maxFruitSize, Math.cbrt(growthPeriod + 1) * 0.45);
+        node.fruitMesh.scale.setScalar(size);
+      } else {
+        node.fruitMesh.visible = false;
+      }
+    }
+
     function traverse(node, fn) {
       fn(node);
       node.children.forEach((child) => traverse(child, fn));
@@ -379,7 +454,7 @@
       if (!target || !target.parent) return;
       target.parent.children = target.parent.children.filter((child) => child !== target);
       updatePhysiology();
-      rebuildMeshes();
+      rebuildMeshes(day);
     }
 
     function onPointerDown(event) {
@@ -421,11 +496,13 @@
 
     ui.btnReset.addEventListener("click", () => {
       day = 0;
+      seasonComplete = false;
       root = null;
       metamerGroup.clear();
       createTree();
       updatePhysiology();
-      simulateDay();
+      rebuildMeshes(day);
+      updateSeasonUI(day);
     });
 
     ui.btnPrune.addEventListener("click", () => {
@@ -434,9 +511,48 @@
       ui.btnPrune.classList.toggle("bg-amber-500/20", pruneMode);
     });
 
+    const dashboard = document.getElementById("physiology-dashboard");
+    const uiLayer = document.getElementById("ui-layer");
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+
+    function initDashboardDrag() {
+      const rect = dashboard.getBoundingClientRect();
+      const layerRect = uiLayer.getBoundingClientRect();
+      dashboard.style.position = "absolute";
+      dashboard.style.left = `${rect.left - layerRect.left}px`;
+      dashboard.style.top = `${rect.top - layerRect.top}px`;
+      dashboard.style.right = "auto";
+      dashboard.style.bottom = "auto";
+    }
+
+    dashboard.addEventListener("pointerdown", (event) => {
+      isDragging = true;
+      dashboard.setPointerCapture(event.pointerId);
+      const rect = dashboard.getBoundingClientRect();
+      dragOffset = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    });
+
+    document.addEventListener("pointerup", () => {
+      isDragging = false;
+    });
+
+    document.addEventListener("pointermove", (event) => {
+      if (!isDragging) return;
+      const layerRect = uiLayer.getBoundingClientRect();
+      const nextLeft = event.clientX - layerRect.left - dragOffset.x;
+      const nextTop = event.clientY - layerRect.top - dragOffset.y;
+      dashboard.style.left = `${nextLeft}px`;
+      dashboard.style.top = `${nextTop}px`;
+      dashboard.style.right = "auto";
+    });
+
     initScene();
     createTree();
     updatePhysiology();
+    rebuildMeshes(day);
+    updateSeasonUI(day);
+    initDashboardDrag();
     animate();
   </script>
 </body>
