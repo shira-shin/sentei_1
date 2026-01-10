@@ -32,6 +32,9 @@
     input[type="range"] {
       accent-color: #38bdf8;
     }
+    body.prune-mode {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Cpath d='M6 7l8 8m0 0l4-4m-4 4l-4 4m4-4l8 8' stroke='%23f59e0b' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='24' cy='10' r='5' fill='none' stroke='%23f59e0b' stroke-width='3'/%3E%3Ccircle cx='10' cy='24' r='5' fill='none' stroke='%23f59e0b' stroke-width='3'/%3E%3C/svg%3E") 12 12, crosshair;
+    }
   </style>
 </head>
 <body>
@@ -50,10 +53,10 @@
           <button id="btn-play" class="w-full py-3 rounded-2xl bg-sky-500 text-slate-900 font-bold hover:bg-sky-400 transition">Start</button>
           <div class="bg-slate-900/60 rounded-2xl p-4">
             <div class="flex justify-between text-[10px] uppercase font-black text-slate-400 mb-2">
-              <span>Simulation Speed</span>
-              <span id="speed-label">4x</span>
+              <span>1日の秒数 (Seconds/Day)</span>
+              <span id="speed-label">6.0s</span>
             </div>
-            <input id="speed-slider" type="range" min="1" max="12" value="4" class="w-full" />
+            <input id="speed-slider" type="range" min="2" max="20" step="0.5" value="6" class="w-full" />
           </div>
           <div class="grid grid-cols-2 gap-2">
             <button id="btn-step" class="py-2 rounded-xl border border-slate-600 text-xs font-bold uppercase hover:bg-slate-800 transition">Step</button>
@@ -64,7 +67,7 @@
       </div>
 
       <div id="physiology-dashboard" class="glass rounded-3xl p-6 w-[320px]">
-        <h2 class="text-xs uppercase font-black text-slate-400 mb-4">Physiology Dashboard</h2>
+        <h2 class="text-xs uppercase font-black text-slate-400 mb-4">PHYSIOLOGY DASHBOARD</h2>
         <div class="space-y-6">
           <div>
             <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
@@ -133,25 +136,23 @@
 
     const MAX_DAYS = 365;
     const PHENOLOGY = {
-      budBreakStart: 75,
-      budBreakEnd: 135,
-      extensionStart: 90,
-      extensionEnd: 220,
-      secondaryStart: 160,
-      secondaryEnd: 260,
-      leafStart: 95,
-      leafEnd: 300,
-      fruitStart: 130,
-      fruitEnd: 280,
-      maxFruitSize: 2.8
+      budBreakStart: 91,
+      budBreakEnd: 150,
+      extensionStart: 91,
+      extensionEnd: 270,
+      leafStart: 91,
+      leafEnd: 360,
+      fruitStart: 151,
+      fruitEnd: 270,
+      maxFruitSize: 3.2
     };
 
     const SEASONS = [
-      { name: "Dormant", start: 0, end: 90, color: "#94a3b8", msg: "Dormant phase: prune to unlock lateral buds." },
-      { name: "Spring", start: 91, end: 180, color: "#38bdf8", msg: "Spring: buds activate and leaves emerge." },
-      { name: "Summer", start: 181, end: 280, color: "#f59e0b", msg: "Summer: photosynthesis fuels vigor." },
-      { name: "Autumn", start: 281, end: 330, color: "#f97316", msg: "Autumn: fruit matures and storage compounds accumulate." },
-      { name: "Winter", start: 331, end: MAX_DAYS, color: "#38bdf8", msg: "Winter: leaf fall and pruning season." }
+      { name: "Winter", start: 0, end: 90, color: "#94a3b8", msg: "Dormant phase: prune to unlock lateral buds." },
+      { name: "Spring", start: 91, end: 150, color: "#38bdf8", msg: "Spring: buds activate and leaves emerge." },
+      { name: "Summer", start: 151, end: 270, color: "#f59e0b", msg: "Summer: thickening and fruit development." },
+      { name: "Autumn", start: 271, end: 360, color: "#f97316", msg: "Autumn: maturity and leaf fall." },
+      { name: "Winter", start: 361, end: MAX_DAYS, color: "#94a3b8", msg: "Winter: leaf fall and pruning season." }
     ];
 
     class Metamer {
@@ -192,9 +193,10 @@
     let metamerGroup = new THREE.Group();
     let day = 0;
     let isPlaying = false;
-    let speed = 4;
+    let secondsPerDay = 6;
     let pruneMode = false;
     let lastFrame = 0;
+    let timeAccumulator = 0;
     let seasonComplete = false;
     let currentVigor = 0.8;
     let defaultCameraPosition = null;
@@ -220,6 +222,9 @@
       nscBar: document.getElementById("nsc-bar")
     };
 
+    secondsPerDay = Number(ui.speed.value);
+    ui.speedLabel.textContent = `${secondsPerDay.toFixed(1)}s`;
+
     function initScene() {
       scene = new THREE.Scene();
       scene.background = new THREE.Color("#0f172a");
@@ -243,7 +248,7 @@
       controls.minDistance = 8;
       controls.maxDistance = 240;
       controls.maxPolarAngle = Math.PI * 0.85;
-      controls.target.set(0, 18, 0);
+      controls.target.set(0, 150, 0);
       controls.update();
       defaultCameraPosition = camera.position.clone();
       defaultCameraTarget = controls.target.clone();
@@ -256,6 +261,14 @@
       const grid = new THREE.GridHelper(200, 20, "#1e293b", "#1e293b");
       grid.position.y = 0;
       scene.add(grid);
+
+      const groundGeo = new THREE.PlaneGeometry(220, 220);
+      const groundMat = new THREE.MeshStandardMaterial({ color: "#0b1224", roughness: 1, metalness: 0 });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = 0;
+      ground.receiveShadow = true;
+      scene.add(ground);
 
       raycaster = new THREE.Raycaster();
       scene.add(metamerGroup);
@@ -293,7 +306,8 @@
         const tilt = 0.8 + Math.random() * 0.3;
         const qTilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), tilt);
         const qSpin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spin);
-        lateral.localQuat.copy(qSpin).multiply(qTilt);
+        const qRoll = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (Math.random() - 0.5) * 0.6);
+        lateral.localQuat.copy(qSpin).multiply(qTilt).multiply(qRoll);
         node.children.push(lateral);
         growInitial(lateral, depth - 2);
       }
@@ -339,7 +353,7 @@
       computePipeModel(root);
 
       const stemMat = new THREE.MeshStandardMaterial({ color: "#8b5e34", roughness: 0.6 });
-      const budActiveMat = new THREE.MeshStandardMaterial({ color: "#7dd3fc", emissive: "#38bdf8", emissiveIntensity: 1.2 });
+      const budActiveMat = new THREE.MeshStandardMaterial({ color: "#a3e635", emissive: "#84cc16", emissiveIntensity: 1.8 });
       const budDormantMat = new THREE.MeshStandardMaterial({ color: "#475569", emissive: "#0f172a", emissiveIntensity: 0.2 });
       const leafMat = new THREE.MeshStandardMaterial({ color: "#2d5a27", side: THREE.DoubleSide, transparent: true, opacity: 0.0 });
       const fruitMat = new THREE.MeshStandardMaterial({ color: "#991b1b", roughness: 0.4 });
@@ -454,7 +468,8 @@
       const tilt = 0.6 + Math.random() * 0.6;
       const qTilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), tilt);
       const qSpin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spin);
-      lateral.localQuat.copy(qSpin).multiply(qTilt);
+      const qRoll = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), (Math.random() - 0.5) * 0.6);
+      lateral.localQuat.copy(qSpin).multiply(qTilt).multiply(qRoll);
       node.children.push(lateral);
       node.budBurstCount += 1;
     }
@@ -485,8 +500,9 @@
         leaf.visible = leafVisible;
         if (leafVisible) {
           const leafProgress = THREE.MathUtils.clamp((currentDay - PHENOLOGY.leafStart) / 35, 0, 1);
-          leaf.scale.setScalar(0.5 + leafProgress * 0.9);
-          leaf.material.opacity = 0.2 + leafProgress * 0.65;
+          const fallProgress = currentDay >= 271 ? THREE.MathUtils.clamp((currentDay - 271) / 40, 0, 1) : 0;
+          leaf.scale.setScalar(0.5 + leafProgress * 0.9 * (1 - fallProgress * 0.4));
+          leaf.material.opacity = 0.2 + leafProgress * 0.65 * (1 - fallProgress);
         }
       });
 
@@ -530,16 +546,27 @@
     function animate(timestamp) {
       requestAnimationFrame(animate);
       controls.update();
-      if (isPlaying && timestamp - lastFrame > 600 / speed) {
-        simulateDay();
+      if (isPlaying) {
+        if (!lastFrame) lastFrame = timestamp;
+        const delta = (timestamp - lastFrame) / 1000;
+        lastFrame = timestamp;
+        timeAccumulator += delta;
+        while (timeAccumulator >= secondsPerDay && day < MAX_DAYS) {
+          timeAccumulator -= secondsPerDay;
+          simulateDay();
+        }
+        if (day >= MAX_DAYS) {
+          endSeason();
+        }
+      } else {
         lastFrame = timestamp;
       }
       composer.render();
     }
 
     ui.speed.addEventListener("input", (event) => {
-      speed = Number(event.target.value);
-      ui.speedLabel.textContent = `${speed}x`;
+      secondsPerDay = Number(event.target.value);
+      ui.speedLabel.textContent = `${secondsPerDay.toFixed(1)}s`;
     });
 
     ui.btnPlay.addEventListener("click", () => {
@@ -552,6 +579,7 @@
     ui.btnReset.addEventListener("click", () => {
       day = 0;
       seasonComplete = false;
+      timeAccumulator = 0;
       root = null;
       metamerGroup.clear();
       createTree();
@@ -566,6 +594,7 @@
       pruneMode = !pruneMode;
       ui.btnPrune.textContent = `Scissors: ${pruneMode ? "ON" : "OFF"}`;
       ui.btnPrune.classList.toggle("bg-amber-500/20", pruneMode);
+      document.body.classList.toggle("prune-mode", pruneMode);
     });
 
     function resetCameraView() {
