@@ -54,10 +54,10 @@
             <button id="btn-play" class="w-full py-3 rounded-2xl bg-sky-500 text-slate-900 font-bold hover:bg-sky-400 transition">開始</button>
             <div class="bg-slate-900/60 rounded-2xl p-4">
               <div class="flex justify-between text-[10px] uppercase font-black text-slate-400 mb-2">
-                <span>1日あたりの秒数</span>
-                <span id="speed-label">3.0s</span>
+                <span>時間倍率</span>
+                <span id="speed-label">x3.0</span>
               </div>
-              <input id="speed-slider" type="range" min="1" max="20" step="0.5" value="3" class="w-full" />
+              <input id="speed-slider" type="range" min="0.5" max="8" step="0.5" value="3" class="w-full" />
             </div>
             <div class="grid grid-cols-2 gap-2">
               <button id="btn-step" class="py-2 rounded-xl border border-slate-600 text-xs font-bold uppercase hover:bg-slate-800 transition">1日進める</button>
@@ -157,6 +157,8 @@
       { name: "冬", start: 361, end: MAX_DAYS, color: "#94a3b8", msg: "冬: 落葉後の剪定期です。" }
     ];
 
+    const INITIAL_TREE_DEPTH = 3;
+
     class Metamer {
       constructor(parent = null, level = 0) {
         this.id = Math.random().toString(36).slice(2);
@@ -168,6 +170,7 @@
         this.nsc = parent ? 0 : 120;
         this.auxin = 0;
         this.budActive = true;
+        this.isPruned = false;
         this.type = parent && level > 1 && Math.random() > 0.55 ? "spur" : "shoot";
         this.maxLength = this.length + (level < 2 ? 6 : 3) + Math.random() * 3;
         this.growthRate = 0.08 + Math.random() * 0.06;
@@ -195,7 +198,7 @@
     let metamerGroup = new THREE.Group();
     let day = 0;
     let isPlaying = false;
-    let secondsPerDay = 3;
+    let speedMultiplier = 3;
     let pruneMode = false;
     let playbackTimer = null;
     let seasonComplete = false;
@@ -223,8 +226,8 @@
       nscBar: document.getElementById("nsc-bar")
     };
 
-    secondsPerDay = Number(ui.speed.value);
-    ui.speedLabel.textContent = `${secondsPerDay.toFixed(1)}s`;
+    speedMultiplier = Number(ui.speed.value);
+    ui.speedLabel.textContent = `x${speedMultiplier.toFixed(1)}`;
 
     function initScene() {
       scene = new THREE.Scene();
@@ -291,7 +294,7 @@
       root.localQuat.setFromAxisAngle(new THREE.Vector3(0, 0, 1), 0);
       root.worldQuat.copy(root.localQuat);
       root.position.set(0, 0, 0);
-      growInitial(root, 3);
+      growInitial(root, INITIAL_TREE_DEPTH);
       rebuildMeshes(day);
       frameTreeView();
     }
@@ -326,6 +329,11 @@
     }
 
     function computeAuxin(node) {
+      if (node.isPruned) {
+        node.auxin = 0;
+        node.budActive = false;
+        return 0;
+      }
       let auxin = node.children.length === 0 ? 1 : 0;
       node.children.forEach((child) => {
         auxin += computeAuxin(child) * AUXIN_DECAY;
@@ -336,6 +344,10 @@
     }
 
     function computePipeModel(node) {
+      if (node.isPruned) {
+        node.radius = 0.32;
+        return Math.pow(node.radius, PIPE_EXPONENT);
+      }
       if (node.children.length === 0) {
         node.radius = 0.35;
         return Math.pow(node.radius, PIPE_EXPONENT);
@@ -445,6 +457,7 @@
     }
 
     function growTree(node) {
+      if (node.isPruned) return;
       node.children.forEach((child) => growTree(child));
       const extensionPhase = day >= PHENOLOGY.extensionStart && day <= PHENOLOGY.extensionEnd;
       if (extensionPhase) {
@@ -498,6 +511,13 @@
     }
 
     function applyPhenology(node, currentDay) {
+      if (node.isPruned) {
+        node.leafMeshes.forEach((leaf) => {
+          leaf.visible = false;
+        });
+        node.fruitMesh.visible = false;
+        return;
+      }
       const leafVisible = currentDay >= PHENOLOGY.leafStart && currentDay <= PHENOLOGY.leafEnd;
       node.leafMeshes.forEach((leaf) => {
         leaf.visible = leafVisible;
@@ -526,7 +546,8 @@
 
     function pruneNode(target) {
       if (!target || !target.parent) return;
-      target.parent.children = target.parent.children.filter((child) => child !== target);
+      target.isPruned = true;
+      target.children = [];
       updatePhysiology();
       rebuildMeshes(day);
     }
@@ -561,7 +582,7 @@
         if (seasonComplete || day >= MAX_DAYS) {
           stopPlaybackTimer();
         }
-      }, secondsPerDay * 1000);
+      }, (1000 / speedMultiplier));
     }
 
     function stopPlaybackTimer() {
@@ -600,8 +621,8 @@
     }
 
     ui.speed.addEventListener("input", (event) => {
-      secondsPerDay = Number(event.target.value);
-      ui.speedLabel.textContent = `${secondsPerDay.toFixed(1)}s`;
+      speedMultiplier = Number(event.target.value);
+      ui.speedLabel.textContent = `x${speedMultiplier.toFixed(1)}`;
       if (isPlaying) {
         startPlaybackTimer();
       }
