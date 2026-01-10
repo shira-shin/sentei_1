@@ -59,6 +59,7 @@
             <button id="btn-step" class="py-2 rounded-xl border border-slate-600 text-xs font-bold uppercase hover:bg-slate-800 transition">Step</button>
             <button id="btn-reset" class="py-2 rounded-xl border border-rose-500 text-xs font-bold uppercase text-rose-300 hover:bg-rose-900/40 transition">Reset</button>
           </div>
+          <button id="btn-reset-view" class="w-full py-2 rounded-xl border border-slate-500 text-xs font-bold uppercase text-slate-200 hover:bg-slate-800 transition">Reset View</button>
         </div>
       </div>
 
@@ -105,7 +106,7 @@
 
     <div class="flex justify-between items-end">
       <div class="glass rounded-2xl p-4 max-w-lg text-sm text-slate-300" id="status-bar">Dormant phase: prune to unlock lateral buds.</div>
-      <div class="text-xs uppercase text-slate-400 font-bold tracking-widest">Drag: Rotate · Wheel: Zoom · Click: Prune</div>
+      <div class="text-xs uppercase text-slate-400 font-bold tracking-widest">Drag: Rotate · Wheel: Zoom · Right Drag: Pan · Double Click: Reset View · Click: Prune</div>
     </div>
   </div>
 
@@ -126,15 +127,21 @@
     import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
     const GOLDEN_ANGLE = THREE.MathUtils.degToRad(137.5);
-    const AUXIN_DECAY = 0.72;
-    const AUXIN_THRESHOLD = 0.6;
+    const AUXIN_DECAY = 0.68;
+    const AUXIN_THRESHOLD = 0.55;
     const PIPE_EXPONENT = 2.5;
 
     const MAX_DAYS = 365;
     const PHENOLOGY = {
-      leafStart: 90,
+      budBreakStart: 75,
+      budBreakEnd: 135,
+      extensionStart: 90,
+      extensionEnd: 220,
+      secondaryStart: 160,
+      secondaryEnd: 260,
+      leafStart: 95,
       leafEnd: 300,
-      fruitStart: 120,
+      fruitStart: 130,
       fruitEnd: 280,
       maxFruitSize: 2.8
     };
@@ -153,18 +160,29 @@
         this.parent = parent;
         this.children = [];
         this.level = level;
-        this.length = 4.5 + Math.random() * 1.5;
+        this.length = 3.0 + Math.random() * 1.2;
         this.radius = 0.4;
         this.nsc = parent ? 0 : 120;
         this.auxin = 0;
         this.budActive = true;
-        this.type = parent && level > 1 && Math.random() > 0.5 ? "spur" : "shoot";
+        this.type = parent && level > 1 && Math.random() > 0.55 ? "spur" : "shoot";
+        this.maxLength = this.length + (level < 2 ? 6 : 3) + Math.random() * 3;
+        this.growthRate = 0.08 + Math.random() * 0.06;
+        this.maxBudBurst = level < 2 ? 3 : level < 4 ? 2 : 1;
+        this.budBurstCount = 0;
+        this.leafCount = this.type === "spur" ? 3 + Math.floor(Math.random() * 2) : 4 + Math.floor(Math.random() * 3);
+        this.leafLayout = Array.from({ length: this.leafCount }, (_, i) => ({
+          spin: GOLDEN_ANGLE * (i + 1) + (Math.random() - 0.5) * 0.4,
+          tilt: 0.3 + Math.random() * 0.5,
+          offset: 0.55 + Math.random() * 0.25
+        }));
+        this.fruitingPotential = this.type === "spur" && Math.random() > 0.25;
         this.localQuat = new THREE.Quaternion();
         this.position = new THREE.Vector3();
         this.worldQuat = new THREE.Quaternion();
         this.mesh = null;
         this.budMesh = null;
-        this.leafMesh = null;
+        this.leafMeshes = [];
         this.fruitMesh = null;
       }
     }
@@ -178,6 +196,9 @@
     let pruneMode = false;
     let lastFrame = 0;
     let seasonComplete = false;
+    let currentVigor = 0.8;
+    let defaultCameraPosition = null;
+    let defaultCameraTarget = null;
 
     const ui = {
       day: document.getElementById("day-display"),
@@ -188,6 +209,7 @@
       btnPlay: document.getElementById("btn-play"),
       btnStep: document.getElementById("btn-step"),
       btnReset: document.getElementById("btn-reset"),
+      btnResetView: document.getElementById("btn-reset-view"),
       btnPrune: document.getElementById("btn-prune"),
       vigor: document.getElementById("vigor-val"),
       vigorBar: document.getElementById("vigor-bar"),
@@ -217,6 +239,14 @@
 
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
+      controls.enablePan = true;
+      controls.minDistance = 8;
+      controls.maxDistance = 240;
+      controls.maxPolarAngle = Math.PI * 0.85;
+      controls.target.set(0, 18, 0);
+      controls.update();
+      defaultCameraPosition = camera.position.clone();
+      defaultCameraTarget = controls.target.clone();
 
       const light = new THREE.DirectionalLight("#ffffff", 1.1);
       light.position.set(50, 120, 60);
@@ -337,12 +367,17 @@
         node.budMesh = bud;
 
         const leafGeo = new THREE.PlaneGeometry(3, 5);
-        const leaf = new THREE.Mesh(leafGeo, leafMat.clone());
-        leaf.position.copy(center.clone().add(axis.clone().multiplyScalar(node.length * 0.8)));
-        leaf.quaternion.copy(node.worldQuat);
-        leaf.rotateX(Math.PI / 2);
-        metamerGroup.add(leaf);
-        node.leafMesh = leaf;
+        node.leafMeshes = [];
+        node.leafLayout.forEach((layout) => {
+          const leaf = new THREE.Mesh(leafGeo, leafMat.clone());
+          leaf.position.copy(center.clone().add(axis.clone().multiplyScalar(node.length * layout.offset)));
+          leaf.quaternion.copy(node.worldQuat);
+          leaf.rotateX(Math.PI / 2);
+          leaf.rotateY(layout.spin);
+          leaf.rotateZ(layout.tilt);
+          metamerGroup.add(leaf);
+          node.leafMeshes.push(leaf);
+        });
 
         const fruitGeo = new THREE.SphereGeometry(1, 16, 16);
         const fruit = new THREE.Mesh(fruitGeo, fruitMat.clone());
@@ -381,9 +416,8 @@
       }
 
       day += 1;
-      if (day % 10 === 0) {
-        growTree(root);
-      }
+      computeAuxin(root);
+      growTree(root);
       updatePhysiology();
       rebuildMeshes(day);
       updateSeasonUI(day);
@@ -395,9 +429,26 @@
 
     function growTree(node) {
       node.children.forEach((child) => growTree(child));
-      if (!node.budActive) return;
-      if (node.children.length > 2 || node.level > 6) return;
-      if (Math.random() > 0.4) return;
+      const extensionPhase = day >= PHENOLOGY.extensionStart && day <= PHENOLOGY.extensionEnd;
+      if (extensionPhase) {
+        const seasonProgress = (day - PHENOLOGY.extensionStart) / (PHENOLOGY.extensionEnd - PHENOLOGY.extensionStart);
+        const growthPulse = Math.sin(Math.PI * seasonProgress);
+        const vigorFactor = THREE.MathUtils.clamp(currentVigor, 0.3, 1.1);
+        node.length = Math.min(node.maxLength, node.length + node.growthRate * growthPulse * vigorFactor);
+      }
+
+      const budBreakPhase = day >= PHENOLOGY.budBreakStart && day <= PHENOLOGY.budBreakEnd;
+      if (!budBreakPhase || !node.budActive) return;
+      if (node.level > 6) return;
+      if (node.budBurstCount >= node.maxBudBurst) return;
+      const maxChildren = node.level < 2 ? 4 : node.level < 4 ? 3 : 2;
+      if (node.children.length >= maxChildren) return;
+
+      const auxinFactor = THREE.MathUtils.clamp(1.05 - node.auxin * 0.65, 0.2, 1.0);
+      const levelFactor = THREE.MathUtils.clamp(1.0 - node.level * 0.12, 0.35, 1.0);
+      const budBurstChance = 0.22 * auxinFactor * levelFactor * currentVigor;
+      if (Math.random() > budBurstChance) return;
+
       const lateral = new Metamer(node, node.level + 1);
       const spin = GOLDEN_ANGLE * (node.level + node.children.length + 1);
       const tilt = 0.6 + Math.random() * 0.6;
@@ -405,6 +456,7 @@
       const qSpin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spin);
       lateral.localQuat.copy(qSpin).multiply(qTilt);
       node.children.push(lateral);
+      node.budBurstCount += 1;
     }
 
     function updatePhysiology() {
@@ -415,6 +467,7 @@
         if (node.budActive) metrics.budsActive += 1; else metrics.budsDormant += 1;
       });
       const vigor = THREE.MathUtils.clamp(0.4 + metrics.budsActive / (metrics.budsDormant + metrics.budsActive + 1), 0.2, 1.0);
+      currentVigor = vigor;
       const trRatio = metrics.shootMass / metrics.rootMass;
       ui.vigor.textContent = vigor.toFixed(2);
       ui.vigorBar.style.width = `${vigor * 100}%`;
@@ -428,14 +481,16 @@
 
     function applyPhenology(node, currentDay) {
       const leafVisible = currentDay >= PHENOLOGY.leafStart && currentDay <= PHENOLOGY.leafEnd;
-      node.leafMesh.visible = leafVisible;
-      if (leafVisible) {
-        const leafProgress = THREE.MathUtils.clamp((currentDay - PHENOLOGY.leafStart) / 30, 0, 1);
-        node.leafMesh.scale.setScalar(0.4 + leafProgress * 0.8);
-        node.leafMesh.material.opacity = 0.25 + leafProgress * 0.6;
-      }
+      node.leafMeshes.forEach((leaf) => {
+        leaf.visible = leafVisible;
+        if (leafVisible) {
+          const leafProgress = THREE.MathUtils.clamp((currentDay - PHENOLOGY.leafStart) / 35, 0, 1);
+          leaf.scale.setScalar(0.5 + leafProgress * 0.9);
+          leaf.material.opacity = 0.2 + leafProgress * 0.65;
+        }
+      });
 
-      if (node.type === "spur" && currentDay >= PHENOLOGY.fruitStart && currentDay <= PHENOLOGY.fruitEnd) {
+      if (node.fruitingPotential && currentDay >= PHENOLOGY.fruitStart && currentDay <= PHENOLOGY.fruitEnd) {
         node.fruitMesh.visible = true;
         const growthPeriod = currentDay - PHENOLOGY.fruitStart;
         const size = Math.min(PHENOLOGY.maxFruitSize, Math.cbrt(growthPeriod + 1) * 0.45);
@@ -505,11 +560,22 @@
       updateSeasonUI(day);
     });
 
+    ui.btnResetView.addEventListener("click", () => resetCameraView());
+
     ui.btnPrune.addEventListener("click", () => {
       pruneMode = !pruneMode;
       ui.btnPrune.textContent = `Scissors: ${pruneMode ? "ON" : "OFF"}`;
       ui.btnPrune.classList.toggle("bg-amber-500/20", pruneMode);
     });
+
+    function resetCameraView() {
+      if (!defaultCameraPosition || !defaultCameraTarget) return;
+      camera.position.copy(defaultCameraPosition);
+      controls.target.copy(defaultCameraTarget);
+      controls.update();
+    }
+
+    document.addEventListener("dblclick", () => resetCameraView());
 
     const dashboard = document.getElementById("physiology-dashboard");
     const uiLayer = document.getElementById("ui-layer");
