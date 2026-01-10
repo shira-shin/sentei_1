@@ -20,7 +20,7 @@
     #ui-layer {
       pointer-events: none;
     }
-    #ui-layer > * {
+    .ui-panel {
       pointer-events: auto;
     }
     .glass {
@@ -38,76 +38,78 @@
   </style>
 </head>
 <body>
-  <div id="ui-layer" class="fixed inset-0 z-10 p-6 flex flex-col justify-center gap-6 relative">
-    <div class="flex justify-between items-start gap-6">
-      <div class="glass rounded-3xl p-6 w-[360px]">
-        <div class="flex items-center justify-between mb-4">
-          <h1 class="text-xl font-black tracking-tight">APPLE FSPM <span class="text-sky-400">v17</span></h1>
-          <span id="season-badge" class="text-[10px] uppercase font-black px-3 py-1 rounded-full border border-slate-500">休眠期</span>
-        </div>
-        <div class="flex items-end gap-3 mb-6">
-          <div id="day-display" class="text-5xl font-black font-mono">000</div>
-          <div class="text-xs uppercase text-slate-400 font-semibold">日数</div>
-        </div>
-        <div class="space-y-4">
-          <button id="btn-play" class="w-full py-3 rounded-2xl bg-sky-500 text-slate-900 font-bold hover:bg-sky-400 transition">開始</button>
-          <div class="bg-slate-900/60 rounded-2xl p-4">
-            <div class="flex justify-between text-[10px] uppercase font-black text-slate-400 mb-2">
-              <span>1日あたりの秒数</span>
-              <span id="speed-label">3.0s</span>
+  <div id="ui-layer" class="fixed inset-0 z-10 p-6 flex flex-col gap-6 relative">
+    <div class="flex items-start gap-6">
+      <div class="flex flex-col gap-4">
+        <div class="glass rounded-3xl p-6 w-[360px] ui-panel">
+          <div class="flex items-center justify-between mb-4">
+            <h1 class="text-xl font-black tracking-tight">APPLE FSPM <span class="text-sky-400">v17</span></h1>
+            <span id="season-badge" class="text-[10px] uppercase font-black px-3 py-1 rounded-full border border-slate-500">休眠期</span>
+          </div>
+          <div class="flex items-end gap-3 mb-6">
+            <div id="day-display" class="text-5xl font-black font-mono">000</div>
+            <div class="text-xs uppercase text-slate-400 font-semibold">日数</div>
+          </div>
+          <div class="space-y-4">
+            <button id="btn-play" class="w-full py-3 rounded-2xl bg-sky-500 text-slate-900 font-bold hover:bg-sky-400 transition">開始</button>
+            <div class="bg-slate-900/60 rounded-2xl p-4">
+              <div class="flex justify-between text-[10px] uppercase font-black text-slate-400 mb-2">
+                <span>1日あたりの秒数</span>
+                <span id="speed-label">3.0s</span>
+              </div>
+              <input id="speed-slider" type="range" min="1" max="20" step="0.5" value="3" class="w-full" />
             </div>
-            <input id="speed-slider" type="range" min="1" max="20" step="0.5" value="3" class="w-full" />
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btn-step" class="py-2 rounded-xl border border-slate-600 text-xs font-bold uppercase hover:bg-slate-800 transition">1日進める</button>
+              <button id="btn-reset" class="py-2 rounded-xl border border-rose-500 text-xs font-bold uppercase text-rose-300 hover:bg-rose-900/40 transition">リセット</button>
+            </div>
+            <button id="btn-reset-view" class="w-full py-2 rounded-xl border border-slate-500 text-xs font-bold uppercase text-slate-200 hover:bg-slate-800 transition">視点リセット</button>
           </div>
-          <div class="grid grid-cols-2 gap-2">
-            <button id="btn-step" class="py-2 rounded-xl border border-slate-600 text-xs font-bold uppercase hover:bg-slate-800 transition">1日進める</button>
-            <button id="btn-reset" class="py-2 rounded-xl border border-rose-500 text-xs font-bold uppercase text-rose-300 hover:bg-rose-900/40 transition">リセット</button>
-          </div>
-          <button id="btn-reset-view" class="w-full py-2 rounded-xl border border-slate-500 text-xs font-bold uppercase text-slate-200 hover:bg-slate-800 transition">視点リセット</button>
         </div>
-      </div>
 
-      <div id="physiology-dashboard" class="glass rounded-3xl p-6 w-[320px]">
-        <h2 class="text-xs uppercase font-black text-slate-400 mb-4">生理ダッシュボード</h2>
-        <div class="space-y-6">
-          <div>
-            <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
-              <span>樹勢メーター</span>
-              <span id="vigor-val">0.80</span>
+        <div class="glass rounded-3xl p-5 w-[360px] ui-panel">
+          <h2 class="text-xs uppercase font-black text-slate-400 mb-3">剪定モード</h2>
+          <button id="btn-prune" class="w-full py-3 rounded-2xl border border-amber-400 text-amber-200 font-bold uppercase hover:bg-amber-500/20 transition">剪定: OFF</button>
+          <p class="text-xs text-slate-400 mt-3 leading-relaxed">クリックした枝と子孫を削除し、樹勢とNSCを再計算します。</p>
+        </div>
+
+        <div id="physiology-dashboard" class="glass rounded-3xl p-5 w-[360px] ui-panel">
+          <h2 class="text-xs uppercase font-black text-slate-400 mb-4">生理ダッシュボード</h2>
+          <div class="space-y-6">
+            <div>
+              <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
+                <span>樹勢メーター</span>
+                <span id="vigor-val">0.80</span>
+              </div>
+              <div class="h-3 bg-slate-800 rounded-full overflow-hidden">
+                <div id="vigor-bar" class="h-full bg-emerald-400" style="width: 80%"></div>
+              </div>
             </div>
-            <div class="h-3 bg-slate-800 rounded-full overflow-hidden">
-              <div id="vigor-bar" class="h-full bg-emerald-400" style="width: 80%"></div>
+            <div>
+              <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
+                <span>T/Rバランス</span>
+                <span id="tr-val">1.00</span>
+              </div>
+              <div class="flex h-3 bg-slate-800 rounded-full overflow-hidden">
+                <div id="tr-shoot" class="h-full bg-indigo-400" style="width: 50%"></div>
+                <div id="tr-root" class="h-full bg-amber-400" style="width: 50%"></div>
+              </div>
             </div>
-          </div>
-          <div>
-            <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
-              <span>T/Rバランス</span>
-              <span id="tr-val">1.00</span>
-            </div>
-            <div class="flex h-3 bg-slate-800 rounded-full overflow-hidden">
-              <div id="tr-shoot" class="h-full bg-indigo-400" style="width: 50%"></div>
-              <div id="tr-root" class="h-full bg-amber-400" style="width: 50%"></div>
-            </div>
-          </div>
-          <div>
-            <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
-              <span>貯蔵養分タンク</span>
-              <span id="nsc-val">120</span>
-            </div>
-            <div class="h-3 bg-slate-800 rounded-full overflow-hidden">
-              <div id="nsc-bar" class="h-full bg-sky-400" style="width: 60%"></div>
+            <div>
+              <div class="flex justify-between text-[11px] font-black uppercase text-slate-300 mb-2">
+                <span>貯蔵養分タンク</span>
+                <span id="nsc-val">120</span>
+              </div>
+              <div class="h-3 bg-slate-800 rounded-full overflow-hidden">
+                <div id="nsc-bar" class="h-full bg-sky-400" style="width: 60%"></div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="glass rounded-3xl p-6 w-[260px]">
-        <h2 class="text-xs uppercase font-black text-slate-400 mb-4">剪定モード</h2>
-        <button id="btn-prune" class="w-full py-3 rounded-2xl border border-amber-400 text-amber-200 font-bold uppercase hover:bg-amber-500/20 transition">剪定: OFF</button>
-        <p class="text-xs text-slate-400 mt-4 leading-relaxed">クリックした枝と子孫を削除し、樹勢とNSCを再計算します。</p>
       </div>
     </div>
 
-    <div class="flex justify-between items-end">
+    <div class="flex justify-between items-end gap-4 ui-panel">
       <div class="glass rounded-2xl p-4 max-w-lg text-sm text-slate-300" id="status-bar">休眠期: 剪定で側枝の芽を促します。</div>
       <div class="text-xs uppercase text-slate-400 font-bold tracking-widest">ドラッグ: 回転 · ホイール: ズーム · 右ドラッグ: 平行移動 · ダブルクリック: 視点リセット · クリック: 剪定</div>
     </div>
@@ -195,8 +197,7 @@
     let isPlaying = false;
     let secondsPerDay = 3;
     let pruneMode = false;
-    let lastFrame = 0;
-    let timeAccumulator = 0;
+    let playbackTimer = null;
     let seasonComplete = false;
     let currentVigor = 0.8;
     let defaultCameraPosition = null;
@@ -419,6 +420,7 @@
       if (seasonComplete) return;
       seasonComplete = true;
       isPlaying = false;
+      stopPlaybackTimer();
       ui.btnPlay.textContent = "開始";
       updateSeasonUI(MAX_DAYS);
       alert("一年が経過しました。冬季剪定を行ってください。");
@@ -544,31 +546,35 @@
       }
     }
 
-    function animate(timestamp) {
+    function animate() {
       requestAnimationFrame(animate);
       controls.update();
-      if (isPlaying) {
-        if (!lastFrame) lastFrame = timestamp;
-        const delta = (timestamp - lastFrame) / 1000;
-        lastFrame = timestamp;
-        timeAccumulator += delta;
-        while (timeAccumulator >= secondsPerDay && day < MAX_DAYS) {
-          timeAccumulator -= secondsPerDay;
-          simulateDay();
-        }
-        if (day >= MAX_DAYS) {
-          endSeason();
-        }
-      } else {
-        lastFrame = timestamp;
-      }
       composer.render();
+    }
+
+    function startPlaybackTimer() {
+      stopPlaybackTimer();
+      if (seasonComplete || day >= MAX_DAYS) return;
+      playbackTimer = window.setInterval(() => {
+        if (!isPlaying) return;
+        simulateDay();
+        if (seasonComplete || day >= MAX_DAYS) {
+          stopPlaybackTimer();
+        }
+      }, secondsPerDay * 1000);
+    }
+
+    function stopPlaybackTimer() {
+      if (playbackTimer) {
+        window.clearInterval(playbackTimer);
+        playbackTimer = null;
+      }
     }
 
     function resetSimulation() {
       day = 0;
       seasonComplete = false;
-      timeAccumulator = 0;
+      stopPlaybackTimer();
       root = null;
       metamerGroup.clear();
       createTree();
@@ -596,6 +602,9 @@
     ui.speed.addEventListener("input", (event) => {
       secondsPerDay = Number(event.target.value);
       ui.speedLabel.textContent = `${secondsPerDay.toFixed(1)}s`;
+      if (isPlaying) {
+        startPlaybackTimer();
+      }
     });
 
     ui.btnPlay.addEventListener("click", () => {
@@ -604,7 +613,9 @@
       }
       isPlaying = !isPlaying;
       if (isPlaying) {
-        lastFrame = 0;
+        startPlaybackTimer();
+      } else {
+        stopPlaybackTimer();
       }
       ui.btnPlay.textContent = isPlaying ? "一時停止" : "開始";
     });
@@ -633,47 +644,10 @@
 
     document.addEventListener("dblclick", () => resetCameraView());
 
-    const dashboard = document.getElementById("physiology-dashboard");
-    const uiLayer = document.getElementById("ui-layer");
-    let isDragging = false;
-    let dragOffset = { x: 0, y: 0 };
-
-    function initDashboardDrag() {
-      const rect = dashboard.getBoundingClientRect();
-      const layerRect = uiLayer.getBoundingClientRect();
-      dashboard.style.position = "absolute";
-      dashboard.style.left = `${rect.left - layerRect.left}px`;
-      dashboard.style.top = `${rect.top - layerRect.top}px`;
-      dashboard.style.right = "auto";
-      dashboard.style.bottom = "auto";
-    }
-
-    dashboard.addEventListener("pointerdown", (event) => {
-      isDragging = true;
-      dashboard.setPointerCapture(event.pointerId);
-      const rect = dashboard.getBoundingClientRect();
-      dragOffset = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    });
-
-    document.addEventListener("pointerup", () => {
-      isDragging = false;
-    });
-
-    document.addEventListener("pointermove", (event) => {
-      if (!isDragging) return;
-      const layerRect = uiLayer.getBoundingClientRect();
-      const nextLeft = event.clientX - layerRect.left - dragOffset.x;
-      const nextTop = event.clientY - layerRect.top - dragOffset.y;
-      dashboard.style.left = `${nextLeft}px`;
-      dashboard.style.top = `${nextTop}px`;
-      dashboard.style.right = "auto";
-    });
-
     initScene();
     createTree();
     updatePhysiology();
     updateSeasonUI(day);
-    initDashboardDrag();
     animate();
   </script>
 </body>
