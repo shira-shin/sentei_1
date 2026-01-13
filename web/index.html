@@ -448,6 +448,7 @@
       updatePhysiology();
       rebuildMeshes(day);
       updateSeasonUI(day);
+      ensureTreeInView();
 
       if (day >= MAX_DAYS) {
         endSeason();
@@ -618,6 +619,22 @@
       defaultCameraTarget = controls.target.clone();
     }
 
+    function isTreeVisible() {
+      if (!metamerGroup || metamerGroup.children.length === 0) return true;
+      const box = new THREE.Box3().setFromObject(metamerGroup);
+      if (box.isEmpty()) return true;
+      const frustum = new THREE.Frustum();
+      const projMatrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      frustum.setFromProjectionMatrix(projMatrix);
+      return frustum.intersectsBox(box);
+    }
+
+    function ensureTreeInView() {
+      if (!isTreeVisible()) {
+        frameTreeView();
+      }
+    }
+
     ui.speed.addEventListener("input", (event) => {
       speedMultiplier = Number(event.target.value);
       ui.speedLabel.textContent = `x${speedMultiplier.toFixed(1)}`;
@@ -655,10 +672,7 @@
     });
 
     function resetCameraView() {
-      if (!defaultCameraPosition || !defaultCameraTarget) return;
-      camera.position.copy(defaultCameraPosition);
-      controls.target.copy(defaultCameraTarget);
-      controls.update();
+      frameTreeView();
     }
 
     document.addEventListener("dblclick", () => resetCameraView());
